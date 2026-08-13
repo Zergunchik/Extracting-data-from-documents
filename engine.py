@@ -165,12 +165,13 @@ def run_script(script_name: str, input_file: Path, output_folder: Path,
                     created.append(f)
     elif script_name == "extract_specification.py":
         # Для extract_specification.py ищем оба типа файлов: реле и автоматы
-        relay_candidate = output_folder / f"{stem}_Реле.xlsx"
-        breaker_candidate = output_folder / f"{stem}_Автоматические_выключатели_вторичных_цепей.xlsx"
-        if relay_candidate.exists():
-            created.append(relay_candidate)
-        if breaker_candidate.exists():
-            created.append(breaker_candidate)
+        # Учитываем возможные суффиксы _1, _2 и т.д., если файлы уже существовали
+        for f in output_folder.glob(f"{stem}_Реле*.xlsx"):
+            if f.stat().st_mtime >= start_time - 0.5:
+                created.append(f)
+        for f in output_folder.glob(f"{stem}_Автоматические_выключатели_вторичных_цепей*.xlsx"):
+            if f.stat().st_mtime >= start_time - 0.5:
+                created.append(f)
     else:
         expected_names = {
             "extract_circuit_breaker.py": f"{stem}_Автоматические_выключатели.xlsx",
