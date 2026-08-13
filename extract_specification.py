@@ -258,8 +258,8 @@ def find_columns(data):
                 if col_idx < len(row) and row[col_idx]:
                     cell_str = normalize_text(str(row[col_idx]))
                     
-                    # Обновленное регулярное выражение с поддержкой цифр перед буквами
-                    if re.search(r'\b\d*KL?\d+(?:-\d+)?(?:\.\d+)?|\b\d*K\d+(?:-\d+)?(?:\.\d+)?[^V]|\b\d*KLB\d+(?:-\d+)?(?:\.\d+)?', cell_str):
+                    # Обновленное регулярное выражение с поддержкой KCC, KLP, KLB, KL, K
+                    if re.search(r'\b\d*KCC\d+(?:-\d+)?(?:\.\d+)?|\b\d*KLP\d+(?:-\d+)?(?:\.\d+)?|\b\d*KLB\d+(?:-\d+)?(?:\.\d+)?|\b\d*KL?\d+(?:-\d+)?(?:\.\d+)?|\b\d*K\d+(?:-\d+)?(?:\.\d+)?(?!V)', cell_str):
                         relay_positions += 1
                     
                     cell_lower = str(row[col_idx]).lower()
@@ -283,8 +283,8 @@ def find_columns(data):
                 continue
             if pos_col_idx < len(row) and row[pos_col_idx]:
                 cell_str = normalize_text(str(row[pos_col_idx]))
-                # Обновленное регулярное выражение с поддержкой цифр перед буквами
-                if re.search(r'\b\d*KL?\d+(?:-\d+)?(?:\.\d+)?|\b\d*K\d+(?:-\d+)?(?:\.\d+)?[^V]|\b\d*KLB\d+(?:-\d+)?(?:\.\d+)?', cell_str):
+                # Обновленное регулярное выражение с поддержкой KCC, KLP, KLB, KL, K
+                if re.search(r'\b\d*KCC\d+(?:-\d+)?(?:\.\d+)?|\b\d*KLP\d+(?:-\d+)?(?:\.\d+)?|\b\d*KLB\d+(?:-\d+)?(?:\.\d+)?|\b\d*KL?\d+(?:-\d+)?(?:\.\d+)?|\b\d*K\d+(?:-\d+)?(?:\.\d+)?(?!V)', cell_str):
                     start_row = row_idx
                     break
     
@@ -337,8 +337,8 @@ def expand_positions_relay(text, full_row_text=None):
         if re.search(r'реле\s+напряжени[яю]', normalized_part, re.IGNORECASE):
             continue
         
-        # Обновленное регулярное выражение с поддержкой цифр перед буквами и дефисов
-        if not re.search(r'\b\d*KL?\d+(?:-\d+)?(?:\.\d+)?|\b\d*K\d+(?:-\d+)?(?:\.\d+)?[^V]|\b\d*KLB\d+(?:-\d+)?(?:\.\d+)?', normalized_part):
+        # Обновленное регулярное выражение с поддержкой KCC, KLP, KLB, KL, K
+        if not re.search(r'\b\d*KCC\d+(?:-\d+)?(?:\.\d+)?|\b\d*KLP\d+(?:-\d+)?(?:\.\d+)?|\b\d*KLB\d+(?:-\d+)?(?:\.\d+)?|\b\d*KL?\d+(?:-\d+)?(?:\.\d+)?|\b\d*K\d+(?:-\d+)?(?:\.\d+)?(?!V)', normalized_part):
             continue
         
         # Обработка диапазонов с дефисом (например, K1-4.1...K1-4.6)
@@ -469,9 +469,9 @@ def extract_relay_type(text):
         if keyword.lower() in text_lower and keyword.lower() != 'реле':
             return keyword, True
     
-    # Если найдено обозначение KL/K/KLB, но тип не определен - возвращаем None, False
+    # Если найдено обозначение KCC/KLP/KLB/KL/K, но тип не определен - возвращаем None, False
     # чтобы сработало наследование last_known_relay
-    if re.search(r'\b\d*KL?\d+(?:\.\d+)?|\b\d*K\d+(?:\.\d+)?[^V]|\b\d*KLB\d+(?:\.\d+)?', text):
+    if re.search(r'\b\d*KCC\d+(?:\.\d+)?|\b\d*KLP\d+(?:\.\d+)?|\b\d*KLB\d+(?:\.\d+)?|\b\d*KL?\d+(?:\.\d+)?|\b\d*K\d+(?:\.\d+)?(?!V)', text):
         return None, False
     
     return None, False
