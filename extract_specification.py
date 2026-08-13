@@ -301,8 +301,8 @@ def find_columns(data):
 
 def expand_positions_relay(text, full_row_text=None):
     """
-    Извлекает позиции с реле (KL, K, KLB)
-    Поддерживает: K1, K1.1, KL1, KLB1, K1...K10, K1.1...K1.9, 2K1, 4K1, 4K2, K1-4.1...K1-4.6
+    Извлекает позиции с реле (KL, K, KLB, KCC, KLP, КСС, КЛП)
+    Поддерживает: K1, K1.1, KL1, KLB1, KCC1, KLP1, КСС1, КЛП1, K1...K10, K1.1...K1.9, 2K1, 4K1, 4K2, K1-4.1...K1-4.6
     """
     if not text or text == 'nan' or text == '':
         return []
@@ -320,11 +320,12 @@ def expand_positions_relay(text, full_row_text=None):
     if re.search(r'реле\s+напряжени[яю]', normalized_text, re.IGNORECASE):
         return []
 
-    # Проверяем наличие реле (обновленное регулярное выражение с поддержкой цифр перед буквами и дефисов)
-    if not re.search(r'\b\d*KL?\d+(?:-\d+)?(?:\.\d+)?|\b\d*K\d+(?:-\d+)?(?:\.\d+)?[^V]|\b\d*KLB\d+(?:-\d+)?(?:\.\d+)?', normalized_text):
+    # Проверяем наличие реле (обновленное регулярное выражение с поддержкой KCC, KLP, КСС, КЛП)
+    # Группа реле: K, KL, KB, KLB, KCC, KLP, КСС, КЛП (с учетом кириллицы и латиницы)
+    if not re.search(r'\b\d*(?:KL?B?|KCC|KLP|КСС|КЛП)\d+(?:-\d+)?(?:\.\d+)?|\b\d*K\d+(?:-\d+)?(?:\.\d+)?[^V]', normalized_text):
         return []
 
-    parts = [p.strip() for p in text.split(',') if p.strip()]
+    parts = [p.strip() for p in text.replace(',', ' ').split() if p.strip()]
 
     for part in parts:
         if not part:
@@ -337,8 +338,8 @@ def expand_positions_relay(text, full_row_text=None):
         if re.search(r'реле\s+напряжени[яю]', normalized_part, re.IGNORECASE):
             continue
         
-        # Обновленное регулярное выражение с поддержкой цифр перед буквами и дефисов
-        if not re.search(r'\b\d*KL?\d+(?:-\d+)?(?:\.\d+)?|\b\d*K\d+(?:-\d+)?(?:\.\d+)?[^V]|\b\d*KLB\d+(?:-\d+)?(?:\.\d+)?', normalized_part):
+        # Обновленное регулярное выражение с поддержкой KCC, KLP, КСС, КЛП
+        if not re.search(r'\b\d*(?:KCC|KLP|KL?B?)\d+(?:-\d+)?(?:\.\d+)?|\b\d*K\d+(?:-\d+)?(?:\.\d+)?[^V]', normalized_part):
             continue
         
         # Обработка диапазонов с дефисом (например, K1-4.1...K1-4.6)
@@ -350,13 +351,16 @@ def expand_positions_relay(text, full_row_text=None):
                     end_str = range_parts[1].strip()
                     
                     # Проверяем, является ли это диапазоном с дефисом
-                    match_start = re.search(r'^(\d*)(KL?B?)(\d+)-(\d+)\.(\d+)$', start_str, re.IGNORECASE)
-                    match_end = re.search(r'^(\d*)(KL?B?)(\d+)-(\d+)\.(\d+)$', end_str, re.IGNORECASE)
+                    # Обновленное регулярное выражение с поддержкой KCC, KLP, КСС, КЛП
+                    match_start = re.search(r'^(\d*)(KCC|KLP|KL?B?)(\d+)-(\d+)\.(\d+)$', start_str, re.IGNORECASE)
+                    match_end = re.search(r'^(\d*)(KCC|KLP|KL?B?)(\d+)-(\d+)\.(\d+)$', end_str, re.IGNORECASE)
                     
                     if match_start and match_end:
                         prefix_start = match_start.group(1) or ''
                         prefix_end = match_end.group(1) or ''
                         relay_type = match_start.group(2).upper()
+                        # Нормализация типа реле (кириллица -> латиница)
+                        relay_type = relay_type.replace('К', 'K').replace('С', 'C').replace('Л', 'L').replace('П', 'P')
                         base_num_start = int(match_start.group(3))
                         base_num_end = int(match_end.group(3))
                         sub_start = int(match_start.group(4))
@@ -383,13 +387,16 @@ def expand_positions_relay(text, full_row_text=None):
                                 positions.append(f"{prefix}{relay_type}{base_num}-{sub_start}.{dot_num}")
                     else:
                         # Пробуем стандартный диапазон без дефиса
-                        match_start = re.search(r'^(\d*)(KL?B?)(\d+)(?:\.(\d+))?$', start_str, re.IGNORECASE)
-                        match_end = re.search(r'^(\d*)(KL?B?)(\d+)(?:\.(\d+))?$', end_str, re.IGNORECASE)
+                        # Обновленное регулярное выражение с поддержкой KCC, KLP, КСС, КЛП
+                        match_start = re.search(r'^(\d*)(KCC|KLP|KL?B?)(\d+)(?:\.(\d+))?$', start_str, re.IGNORECASE)
+                        match_end = re.search(r'^(\d*)(KCC|KLP|KL?B?)(\d+)(?:\.(\d+))?$', end_str, re.IGNORECASE)
                         
                         if match_start and match_end:
                             prefix_start = match_start.group(1) or ''
                             prefix_end = match_end.group(1) or ''
                             relay_type = match_start.group(2).upper()
+                            # Нормализация типа реле (кириллица -> латиница)
+                            relay_type = relay_type.replace('К', 'K').replace('С', 'C').replace('Л', 'L').replace('П', 'P')
                             base_num_start = int(match_start.group(3))
                             base_num_end = int(match_end.group(3))
                             dot_start = int(match_start.group(4)) if match_start.group(4) else 0
@@ -423,15 +430,17 @@ def expand_positions_relay(text, full_row_text=None):
                 continue
         else:
             # Одиночная позиция
-            # Обновленное регулярное выражение для поддержки форматов с дефисом (K2-1.1)
+            # Обновленное регулярное выражение для поддержки форматов с дефисом (K2-1.1) и новых типов реле
             # Группа 1: префикс (цифры)
-            # Группа 2: тип реле (K, KL, KB, KLB)
+            # Группа 2: тип реле (KCC, KLP, K, KL, KB, KLB, КСС, КЛП) - более длинные альтернативы сначала
             # Группа 3: базовый номер (может включать дефис и цифру, например 2-1)
             # Группа 4: подномер после точки
-            matches = re.findall(r'(\d*)(KL?B?)(\d+(?:-\d+)?)(?:\.(\d+))?', normalized_part, re.IGNORECASE)
+            matches = re.findall(r'(\d*)(KCC|KLP|KL?B?)(\d+(?:-\d+)?)(?:\.(\d+))?', normalized_part, re.IGNORECASE)
             for match in matches:
                 prefix = match[0] or ''
                 relay_type = match[1].upper()
+                # Нормализация типа реле (кириллица -> латиница)
+                relay_type = relay_type.replace('К', 'K').replace('С', 'C').replace('Л', 'L').replace('П', 'P')
                 base_num = match[2]
                 dot_num = match[3]
                 
