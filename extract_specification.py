@@ -32,15 +32,8 @@ NEGATIVE_KEYWORDS = [
 # --- СПИСОК КЛЮЧЕВЫХ СЛОВ ДЛЯ РЕЛЕ ---
 RELAY_KEYWORDS = [
     'реле',
-    'реле напряжения',
-    'реле контроля',
-    'контроллер',
-    'реле времени',
-    'тепловое реле',
     'промежуточное реле',
-    'реле тока',
-    'реле температуры',
-    'RKE4CO',
+    'реле промежуточное',
     'RKE4CO024LT',
     'RKE4CO730LT'
 ]
@@ -321,7 +314,14 @@ def expand_positions_relay(text, full_row_text=None):
         return []
 
     # Проверяем наличие реле (обновленное регулярное выражение с поддержкой цифр перед буквами и дефисов)
-    if not re.search(r'\b\d*KL?\d+(?:-\d+)?(?:\.\d+)?|\b\d*K\d+(?:-\d+)?(?:\.\d+)?[^V]|\b\d*KLB\d+(?:-\d+)?(?:\.\d+)?', normalized_text):
+    if not re.search(
+        r'\b\d*KCC\d+(?:-\d+)?(?:\.\d+)?|'   # KCC1, KCC2-1, KCC3.1
+        r'\b\d*KLP\d+(?:-\d+)?(?:\.\d+)?|'   # KLP1, KLP2-1, KLP3.1
+        r'\b\d*KLB\d+(?:-\d+)?(?:\.\d+)?|'   # KLB1, KLB2-1, KLB3.1
+        r'\b\d*KL?\d+(?:-\d+)?(?:\.\d+)?|'   # KL1, KL2-1 (и K1 если L нет)
+        r'\b\d*K\d+(?:-\d+)?(?:\.\d+)?(?!V)', # K1, K2-1 (но не KV1)
+    normalized_text
+    ):
         return []
 
     parts = [p.strip() for p in text.split(',') if p.strip()]
