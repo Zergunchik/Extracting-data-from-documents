@@ -163,6 +163,14 @@ def run_script(script_name: str, input_file: Path, output_folder: Path,
             if "Реле" in f.stem or "Общий_Отчет_Реле" in f.stem:
                 if f.stat().st_mtime >= start_time - 0.5:
                     created.append(f)
+    elif script_name == "extract_specification.py":
+        # Для extract_specification.py ищем оба типа файлов: реле и автоматы
+        relay_candidate = output_folder / f"{stem}_Реле.xlsx"
+        breaker_candidate = output_folder / f"{stem}_Автоматические_выключатели_вторичных_цепей.xlsx"
+        if relay_candidate.exists():
+            created.append(relay_candidate)
+        if breaker_candidate.exists():
+            created.append(breaker_candidate)
     else:
         expected_names = {
             "extract_circuit_breaker.py": f"{stem}_Автоматические_выключатели.xlsx",
@@ -233,27 +241,65 @@ def process_files_for_operation(
     # Объединение результатов
     if merge_mode:
         if len(all_created) > 1:
-            suffix_map = {
-                "extract_circuit_breaker.py": "Автоматические выключатели (объединенные)",
-                "extract_current_transformer.py": "Трансформаторы тока (объединенные)",
-                "extract_contactors_with_relays.py": "Контакторы и реле (объединенные)",
-                "extract_circuit_breaker_from_baskets.py": "Автоматические выключатели в корзинах (объединенные)",
-                "extract_secondary_circuit_breaker.py": "Автоматические выключатели вторичных цепей (объединенные)",
-            }
-            suffix = suffix_map.get(script_name, "Объединенные результаты")
-            merged_file = _safe_path(output_folder / f"{suffix}.xlsx")
-
-            merge_success, merge_msg = merge_excel_files(all_created, merged_file)
-            if merge_success:
-                all_messages.append(f"📦 {len(all_created)} файлов объединены в: {merged_file.name}")
+            # Группируем файлы по типу для extract_specification.py
+            if script_name == "extract_specification.py":
+                relay_files = [f for f in all_created if "Реле" in f.name]
+                breaker_files = [f for f in all_created if "Автоматические_выключатели_вторичных_цепей" in f.name]
+                
+                merged_files = []
+                
+                # Объединяем файлы с реле
+                if relay_files:
+                    relay_suffix = "Реле (объединенные)"
+                    relay_merged_file = _safe_path(output_folder / f"{relay_suffix}.xlsx")
+                    merge_success, merge_msg = merge_excel_files(relay_files, relay_merged_file)
+                    if merge_success:
+                        all_messages.append(f"📦 {len(relay_files)} файлов с реле объединены в: {relay_merged_file.name}")
+                        merged_files.append(relay_merged_file)
+                    else:
+                        all_messages.append(f"❌ Ошибка объединения реле: {merge_msg}")
+                
+                # Объединяем файлы с автоматами
+                if breaker_files:
+                    breaker_suffix = "Автоматические выключатели вторичных цепей (объединенные)"
+                    breaker_merged_file = _safe_path(output_folder / f"{breaker_suffix}.xlsx")
+                    merge_success, merge_msg = merge_excel_files(breaker_files, breaker_merged_file)
+                    if merge_success:
+                        all_messages.append(f"📦 {len(breaker_files)} файлов с автоматами объединены в: {breaker_merged_file.name}")
+                        merged_files.append(breaker_merged_file)
+                    else:
+                        all_messages.append(f"❌ Ошибка объединения автоматов: {merge_msg}")
+                
+                # Удаляем временные файлы
                 for f in all_created:
                     try:
                         f.unlink()
                     except Exception:
                         pass
-                all_created = [merged_file]
+                all_created = merged_files
             else:
-                all_messages.append(f"❌ Ошибка объединения: {merge_msg}")
+                # Стандартная логика для других скриптов
+                suffix_map = {
+                    "extract_circuit_breaker.py": "Автоматические выключатели (объединенные)",
+                    "extract_current_transformer.py": "Трансформаторы тока (объединенные)",
+                    "extract_contactors_with_relays.py": "Контакторы и реле (объединенные)",
+                    "extract_circuit_breaker_from_baskets.py": "Автоматические выключатели в корзинах (объединенные)",
+                    "extract_secondary_circuit_breaker.py": "Автоматические выключатели вторичных цепей (объединенные)",
+                }
+                suffix = suffix_map.get(script_name, "Объединенные результаты")
+                merged_file = _safe_path(output_folder / f"{suffix}.xlsx")
+
+                merge_success, merge_msg = merge_excel_files(all_created, merged_file)
+                if merge_success:
+                    all_messages.append(f"📦 {len(all_created)} файлов объединены в: {merged_file.name}")
+                    for f in all_created:
+                        try:
+                            f.unlink()
+                        except Exception:
+                            pass
+                    all_created = [merged_file]
+                else:
+                    all_messages.append(f"❌ Ошибка объединения: {merge_msg}")
         elif len(all_created) == 1:
             single_file = all_created[0]
             if single_file.parent != output_folder:
