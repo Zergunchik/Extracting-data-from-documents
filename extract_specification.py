@@ -464,23 +464,48 @@ def extract_relay_type(text):
         if kw.lower() in text_lower:
             return None, False
     
-    # Поиск артикула после слова "Реле" (независимо от регистра)
-    # Извлекаем слово сразу после "реле" до первого пробела или запятой
-    relay_article_match = re.search(r'[Рр][Ее][Лл][Ее]\s+([A-Za-z0-9]+)', text)
+    # ШАГ 1: Сначала ищем конкретные типы реле по ключевым словам (приоритет более специфичным)
+    # Порядок важен: сначала более специфичные, потом общие
+    specific_keywords = [
+        'реле времени',
+        'реле промежуточное',
+        'промежуточное реле',
+        'реле контроля',
+        'реле напряжения',
+        'реле тока',
+        'реле температуры',
+        'тепловое реле',
+        'контроллер',
+        'реле'
+    ]
+    
+    for keyword in specific_keywords:
+        if keyword in text_lower:
+            # Если это просто "реле", продолжаем поиск артикула
+            if keyword == 'реле':
+                continue
+            return keyword, True
+    
+    # ШАГ 2: Ищем артикул реле в любом месте строки (паттерн: буквы-цифры-дефисы)
+    # Примеры: ПР-102-4-3A-220В-DC-T, РР-102-4-(3-5)А-20
+    article_match = re.search(r'\b([A-Za-zА-Яа-я0-9]+(?:-[A-Za-zА-Яа-я0-9()]+)+)\b', text)
+    if article_match:
+        article = article_match.group(1)
+        # Проверяем, что это похоже на артикул (содержит и буквы, и цифры, и дефисы)
+        if '-' in article and re.search(r'[a-zA-Zа-яА-Я]', article) and re.search(r'[0-9]', article):
+            return article, True
+    
+    # ШАГ 3: Поиск артикула после слова "Реле" (старая логика как запасной вариант)
+    relay_article_match = re.search(r'[Рр][Ее][Лл][Ее]\s+([A-Za-z0-9А-Яа-я-]+)', text)
     if relay_article_match:
         article = relay_article_match.group(1)
         # Проверяем, что это похоже на артикул (содержит буквы и цифры)
-        if re.search(r'[a-zA-Z]', article) and re.search(r'[0-9]', article):
+        if re.search(r'[a-zA-Zа-яА-Я]', article) and re.search(r'[0-9]', article):
             return article, True
     
-    # Поиск типа реле по ключевым словам (кроме общего слова "реле")
-    for keyword in RELAY_KEYWORDS:
-        if keyword.lower() in text_lower and keyword.lower() != 'реле':
-            return keyword, True
-    
-    # Если найдено обозначение KL/K/KLB, но тип не определен - возвращаем None, False
+    # Если найдено обозначение KL/K/KLB/KCC/KLP, но тип не определен - возвращаем None, False
     # чтобы сработало наследование last_known_relay
-    if re.search(r'\b\d*KL?\d+(?:\.\d+)?|\b\d*K\d+(?:\.\d+)?[^V]|\b\d*KLB\d+(?:\.\d+)?', text):
+    if re.search(r'\b\d*KL?\d+(?:\.\d+)?|\b\d*K\d+(?:\.\d+)?[^V]|\b\d*KLB\d+(?:\.\d+)?|\b\d*(KCC|KLP|КСС|КЛП)\d+(?:\.\d+)?', text):
         return None, False
     
     return None, False
