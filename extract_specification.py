@@ -320,7 +320,7 @@ def expand_positions_relay(text, full_row_text=None):
         r'\b\d*KLB\d+(?:-\d+)?(?:\.\d+)?|'   # KLB1, KLB2-1, KLB3.1
         r'\b\d*KL?\d+(?:-\d+)?(?:\.\d+)?|'   # KL1, KL2-1 (и K1 если L нет)
         r'\b\d*K\d+(?:-\d+)?(?:\.\d+)?(?!V)', # K1, K2-1 (но не KV1)
-    normalized_text
+        normalized_text
     ):
         return []
 
@@ -425,10 +425,10 @@ def expand_positions_relay(text, full_row_text=None):
             # Одиночная позиция
             # Обновленное регулярное выражение для поддержки форматов с дефисом (K2-1.1)
             # Группа 1: префикс (цифры)
-            # Группа 2: тип реле (K, KL, KB, KLB)
+            # Группа 2: тип реле (KCC, KLP, KLB, KL, K)
             # Группа 3: базовый номер (может включать дефис и цифру, например 2-1)
             # Группа 4: подномер после точки
-            matches = re.findall(r'(\d*)(KL?B?)(\d+(?:-\d+)?)(?:\.(\d+))?', normalized_part, re.IGNORECASE)
+            matches = re.findall(r'(\d*)(KCC|KLP|KLB|KL?B?|K?)(\d+(?:-\d+)?)(?:\.(\d+))?', normalized_part, re.IGNORECASE)
             for match in matches:
                 prefix = match[0] or ''
                 relay_type = match[1].upper()
@@ -471,7 +471,7 @@ def extract_relay_type(text):
     
     # Если найдено обозначение KCC/KLP/KLB/KL/K, но тип не определен - возвращаем None, False
     # чтобы сработало наследование last_known_relay
-    if re.search(r'\b\d*KCC\d+(?:\.\d+)?|\b\d*KLP\d+(?:\.\d+)?|\b\d*KLB\d+(?:\.\d+)?|\b\d*KL?\d+(?:\.\d+)?|\b\d*K\d+(?:\.\d+)?(?!V)', text):
+    if re.search(r'\b\d*KCC\d+(?:-\d+)?(?:\.\d+)?|\b\d*KLP\d+(?:-\d+)?(?:\.\d+)?|\b\d*KLB\d+(?:-\d+)?(?:\.\d+)?|\b\d*KL?\d+(?:-\d+)?(?:\.\d+)?|\b\d*K\d+(?:-\d+)?(?:\.\d+)?(?!V)', text):
         return None, False
     
     return None, False
