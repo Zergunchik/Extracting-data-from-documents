@@ -8,11 +8,136 @@ import sys
 from pathlib import Path
 import time
 import builtins
+import tkinter as tk
+from tkinter import ttk
 
 def should_stop():
     """Проверяет, запросил ли пользователь остановку через GUI."""
     check = getattr(builtins, '_gui_stop_check', None)
     return check() if check else False
+
+
+def show_relay_voltage_dialog(unique_relays):
+    """
+    Показывает GUI диалог для выбора номинального напряжения для каждого типа реле.
+    unique_relays: список словарей {'type': 'RCL424730', 'positions': [...]}
+    Возвращает: словарь {relay_type: voltage} или None если отмена
+    """
+    result = {}
+    cancelled = False
+    
+    root = tk.Tk()
+    root.title("Выбор номинального напряжения реле")
+    root.geometry("600x400")
+    
+    # Фрейм для таблицы
+    table_frame = ttk.Frame(root)
+    table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+    
+    # Создаем Treeview с колонками
+    columns = ('num', 'type', 'v230', 'v220', 'v24')
+    tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=min(len(unique_relays), 15))
+    
+    # Настраиваем заголовки
+    tree.heading('num', text='№ п/п')
+    tree.heading('type', text='Тип реле')
+    tree.heading('v230', text='~230В')
+    tree.heading('v220', text='=220В')
+    tree.heading('v24', text='=24В')
+    
+    # Настраиваем ширину колонок
+    tree.column('num', width=50, anchor=tk.CENTER)
+    tree.column('type', width=200, anchor=tk.W)
+    tree.column('v230', width=80, anchor=tk.CENTER)
+    tree.column('v220', width=80, anchor=tk.CENTER)
+    tree.column('v24', width=80, anchor=tk.CENTER)
+    
+    # Добавляем скроллбар
+    scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=tree.yview)
+    tree.configure(yscrollcommand=scrollbar.set)
+    
+    tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    
+    # Заполняем таблицу
+    for idx, relay in enumerate(unique_relays, 1):
+        relay_type = relay['type']
+        tree.insert('', tk.END, values=(idx, relay_type, '', '', ''), tags=(relay_type,))
+    
+    # Обработчик клика по ячейке с напряжением
+    def on_cell_click(event):
+        region = tree.identify("region", event.x, event.y)
+        if region == "cell":
+            column = tree.identify_column(event.x)
+            item = tree.identify_row(event.y)
+            if column in ('#3', '#4', '#5'):  # Колонки с напряжением
+                current_values = tree.item(item, 'values')
+                relay_type = current_values[1]
+                
+                # Сбрасываем все галочки в этой строке
+                new_values = list(current_values)
+                new_values[2] = ''  # ~230В
+                new_values[3] = ''  # =220В
+                new_values[4] = ''  # =24В
+                
+                # Ставим галочку в нажатой колонке
+                col_idx = int(column[1:]) - 2  # 3->1, 4->2, 5->3
+                new_values[col_idx + 2] = '✓'
+                
+                tree.item(item, values=tuple(new_values))
+    
+    tree.bind('<Button-1>', on_cell_click)
+    
+    # Кнопки ОК и Отмена
+    btn_frame = ttk.Frame(root)
+    btn_frame.pack(fill=tk.X, padx=10, pady=10)
+    
+    def on_ok():
+        nonlocal result
+        for item in tree.get_children():
+            values = tree.item(item, 'values')
+            relay_type = values[1]
+            if values[2]:  # ~230В
+                result[relay_type] = '~230В'
+            elif values[3]:  # =220В
+                result[relay_type] = '=220В'
+            elif values[4]:  # =24В
+                result[relay_type] = '=24В'
+            else:
+                result[relay_type] = ''  # Не выбрано
+        root.destroy()
+    
+    def on_cancel():
+        nonlocal cancelled
+        cancelled = True
+        root.destroy()
+    
+    btn_ok = ttk.Button(btn_frame, text="OK", command=on_ok)
+    btn_ok.pack(side=tk.LEFT, padx=5)
+    
+    btn_cancel = ttk.Button(btn_frame, text="Отмена", command=on_cancel)
+    btn_cancel.pack(side=tk.LEFT, padx=5)
+    
+    # Инструкция
+    lbl = ttk.Label(root, text="Выберите напряжение кликом по соответствующей колонке")
+    lbl.pack(pady=(0, 10))
+    
+    root.mainloop()
+    
+    return None if cancelled else result
+
+
+def get_unique_relay_types(relays_list):
+    """Возвращает список уникальных типов реле с их позициями"""
+    unique = {}
+    for relay in relays_list:
+        relay_type = relay.get('type', '')
+        pos = relay.get('pos', '')
+        if relay_type not in unique:
+            unique[relay_type] = []
+        unique[relay_type].append(pos)
+    
+    return [{'type': t, 'positions': p} for t, p in unique.items()]
 
 
 # ============================================================
@@ -1063,25 +1188,49 @@ def match_device_type_with_library(device_type, nominals_library):
 # СОХРАНЕНИЕ РЕЗУЛЬТАТОВ
 # ============================================================
 
-def save_relays_to_xlsx(relays_list, output_file_path):
-    """Сохраняет реле в Excel файл"""
+def save_relays_to_xlsx(relays_list, output_file_path, voltage_map=None):
+    """Сохраняет реле в Excel файл
+    voltage_map: словарь {relay_type: voltage} для заполнения номинального напряжения
+    """
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Реле (KL, K, KLB)"
     ws.append([
         "№ п/п",
         "Позиционное обозначение (KL/K/KLB)",
-        "Тип реле"
+        "Тип реле",
+        "Номинальное напряжение, В",
+        "Напряжение срабатывания",
+        "Напряжение Возврата",
+        "Контакты НО",
+        "Контакты НЗ",
+        "Заключение"
     ])
     for i, relay in enumerate(relays_list, 1):
+        relay_type = relay.get('type', '')
+        voltage = ''
+        if voltage_map and relay_type in voltage_map:
+            voltage = voltage_map.get(relay_type, '')
         ws.append([
             i,
             relay.get('pos', ''),
-            relay.get('type', '')
+            relay_type,
+            voltage,
+            '',
+            '',
+            '',
+            '',
+            'Соотв.'
         ])
     ws.column_dimensions['A'].width = 10
     ws.column_dimensions['B'].width = 25
     ws.column_dimensions['C'].width = 40
+    ws.column_dimensions['D'].width = 25
+    ws.column_dimensions['E'].width = 25
+    ws.column_dimensions['F'].width = 25
+    ws.column_dimensions['G'].width = 15
+    ws.column_dimensions['H'].width = 15
+    ws.column_dimensions['I'].width = 15
     wb.save(output_file_path)
     return output_file_path
 
@@ -1202,7 +1351,18 @@ def main():
                 relay_output_file = output_folder / f"{base_name}_{counter}{ext}"
                 counter += 1
         
-        save_relays_to_xlsx(all_relays, str(relay_output_file))
+        # Показываем диалог выбора напряжения
+        print("\n💡 Открытие окна выбора номинального напряжения реле...")
+        unique_relays = get_unique_relay_types(all_relays)
+        voltage_map = show_relay_voltage_dialog(unique_relays)
+        
+        if voltage_map is not None:
+            print(f"   ✅ Выбрано напряжений: {len(voltage_map)}")
+            save_relays_to_xlsx(all_relays, str(relay_output_file), voltage_map)
+        else:
+            print("   ⚠️ Выбор напряжения отменён, файл сохранён без заполнения графы 'Номинальное напряжение'")
+            save_relays_to_xlsx(all_relays, str(relay_output_file))
+        
         print(f"\n✅ Реле сохранены: {relay_output_file.name}")
         print(f"   📊 Всего реле: {len(all_relays)}")
     else:
