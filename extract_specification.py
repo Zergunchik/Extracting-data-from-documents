@@ -93,6 +93,7 @@ def show_relay_voltage_dialog(unique_relays):
     btn_frame.pack(fill=tk.X, padx=10, pady=10)
     
     def on_ok():
+        nonlocal result
         for item in tree.get_children():
             values = tree.item(item, 'values')
             relay_type = values[1]
