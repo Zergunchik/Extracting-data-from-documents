@@ -1468,7 +1468,7 @@ def main():
                 if nominal_from_lib is not None:
                     result['current'] = nominal_from_lib
         
-        breaker_output_file = output_folder / f"{pdf_file.stem}_Автоматические_выключатели_вторичных_цепей.xlsx"
+        breaker_output_file = output_folder / f"{pdf_file.stem}_Автоматические_выключатели.xlsx"
         if breaker_output_file.exists():
             base_name = breaker_output_file.stem
             ext = breaker_output_file.suffix
