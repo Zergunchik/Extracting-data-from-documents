@@ -1209,23 +1209,20 @@ def save_relays_to_xlsx(relays_list, output_file_path, voltage_map=None):
         voltage = ''
         if voltage_map and relay_type in voltage_map:
             voltage = voltage_map.get(relay_type, '')
+        # Экранируем значения, начинающиеся с '=', чтобы Excel не воспринимал их как формулы
+        safe_voltage = "'" + voltage if isinstance(voltage, str) and voltage.startswith('=') else voltage
+        safe_relay_type = "'" + relay_type if isinstance(relay_type, str) and relay_type.startswith('=') else relay_type
         ws.append([
             i,
             relay.get('pos', ''),
-            relay_type,
-            voltage,
+            safe_relay_type,
+            safe_voltage,
             '',
             '',
             '',
             '',
             'Соотв.'
         ])
-    
-    # ИСПРАВЛЕНИЕ: Принудительно указываем Excel, что ячейки с '=' это текст, а не формулы
-    for row in ws.iter_rows():
-        for cell in row:
-            if isinstance(cell.value, str) and cell.value.startswith('='):
-                cell.data_type = 's'
     
     ws.column_dimensions['A'].width = 10
     ws.column_dimensions['B'].width = 25
@@ -1296,15 +1293,12 @@ def save_relay_voltage_memory(file_path, new_voltages):
         # Заголовки
         ws.append(["Тип реле", "Номинальное напряжение"])
         
-        # Записываем все данные
+        # Записываем все данные, экранируя значения, начинающиеся с '='
         for r_type, voltage in existing_voltages.items():
-            ws.append([r_type, voltage])
-            
-        # ИСПРАВЛЕНИЕ: Принудительно указываем Excel, что ячейки с '=' это текст, а не формулы
-        for row in ws.iter_rows():
-            for cell in row:
-                if isinstance(cell.value, str) and cell.value.startswith('='):
-                    cell.data_type = 's'
+            # Экранируем значения, начинающиеся с '=', чтобы Excel не воспринимал их как формулы
+            safe_voltage = "'" + voltage if isinstance(voltage, str) and voltage.startswith('=') else voltage
+            safe_r_type = "'" + r_type if isinstance(r_type, str) and r_type.startswith('=') else r_type
+            ws.append([safe_r_type, safe_voltage])
             
         # Красивые ширины колонок
         ws.column_dimensions['A'].width = 40
