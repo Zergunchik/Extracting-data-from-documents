@@ -1190,6 +1190,8 @@ def save_relays_to_xlsx(relays_list, output_file_path, voltage_map=None):
     """Сохраняет реле в Excel файл
     voltage_map: словарь {relay_type: voltage} для заполнения номинального напряжения
     """
+    from openpyxl.styles import Alignment
+    
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Реле (KL, K, KLB)"
@@ -1205,24 +1207,39 @@ def save_relays_to_xlsx(relays_list, output_file_path, voltage_map=None):
         "Заключение"
     ])
     for i, relay in enumerate(relays_list, 1):
+        row_num = ws.max_row + 1
         relay_type = relay.get('type', '')
+        pos = relay.get('pos', '')
         voltage = ''
         if voltage_map and relay_type in voltage_map:
             voltage = voltage_map.get(relay_type, '')
-        # Экранируем значения, начинающиеся с '=', чтобы Excel не воспринимал их как формулы
-        safe_voltage = "'" + voltage if isinstance(voltage, str) and voltage.startswith('=') else voltage
-        safe_relay_type = "'" + relay_type if isinstance(relay_type, str) and relay_type.startswith('=') else relay_type
-        ws.append([
-            i,
-            relay.get('pos', ''),
-            safe_relay_type,
-            safe_voltage,
-            '',
-            '',
-            '',
-            '',
-            'Соотв.'
-        ])
+        
+        # Записываем ячейки по одной, обрабатывая значения с '='
+        ws.cell(row=row_num, column=1, value=i)
+        ws.cell(row=row_num, column=2, value=pos)
+        
+        # Тип реле - если начинается с '=', добавляем апостроф
+        if isinstance(relay_type, str) and relay_type.startswith('='):
+            cell_c = ws.cell(row=row_num, column=3, value="'" + relay_type)
+            cell_c.number_format = '@'
+            cell_c.alignment = Alignment(horizontal='left')
+        else:
+            ws.cell(row=row_num, column=3, value=relay_type)
+        
+        # Напряжение - если начинается с '=', добавляем апостроф
+        if isinstance(voltage, str) and voltage.startswith('='):
+            cell_d = ws.cell(row=row_num, column=4, value="'" + voltage)
+            cell_d.number_format = '@'
+            cell_d.alignment = Alignment(horizontal='left')
+        else:
+            ws.cell(row=row_num, column=4, value=voltage)
+        
+        # Остальные колонки
+        ws.cell(row=row_num, column=5, value='')
+        ws.cell(row=row_num, column=6, value='')
+        ws.cell(row=row_num, column=7, value='')
+        ws.cell(row=row_num, column=8, value='')
+        ws.cell(row=row_num, column=9, value='Соотв.')
     
     ws.column_dimensions['A'].width = 10
     ws.column_dimensions['B'].width = 25
@@ -1267,6 +1284,9 @@ def load_relay_voltage_memory(file_path):
             if row[0] and row[1]:
                 relay_type = str(row[0]).strip()
                 voltage = str(row[1]).strip()
+                # Удаляем апостроф в начале, если он есть (Excel добавляет его для текста с '=')
+                if voltage.startswith("'"):
+                    voltage = voltage[1:]
                 if voltage:  # Записываем только если напряжение не пустое
                     voltages[relay_type] = voltage
         wb.close()
@@ -1293,12 +1313,24 @@ def save_relay_voltage_memory(file_path, new_voltages):
         # Заголовки
         ws.append(["Тип реле", "Номинальное напряжение"])
         
-        # Записываем все данные, экранируя значения, начинающиеся с '='
+        # Записываем все данные, используя апостроф для значений с '='
+        from openpyxl.styles import Alignment
+        
         for r_type, voltage in existing_voltages.items():
-            # Экранируем значения, начинающиеся с '=', чтобы Excel не воспринимал их как формулы
-            safe_voltage = "'" + voltage if isinstance(voltage, str) and voltage.startswith('=') else voltage
-            safe_r_type = "'" + r_type if isinstance(r_type, str) and r_type.startswith('=') else r_type
-            ws.append([safe_r_type, safe_voltage])
+            row_num = ws.max_row + 1
+            
+            # Тип реле
+            ws.cell(row=row_num, column=1, value=r_type)
+            
+            # Напряжение - если начинается с '=', добавляем апостроф как префикс
+            if isinstance(voltage, str) and voltage.startswith('='):
+                # Добавляем апостроф перед значением - Excel распознает это как текст
+                cell = ws.cell(row=row_num, column=2, value="'" + voltage)
+                # Устанавливаем текстовый формат и выравнивание по левому краю
+                cell.number_format = '@'
+                cell.alignment = Alignment(horizontal='left')
+            else:
+                ws.cell(row=row_num, column=2, value=voltage)
             
         # Красивые ширины колонок
         ws.column_dimensions['A'].width = 40

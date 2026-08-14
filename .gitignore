@@ -1,1 +1,1 @@
-Nothing should be ignored based on the provided changes. The only modified file is `extract_specification.py`, which is a Python source file and should not be ignored.
+Nothing to output - the modified files are only Python source files (.py) which should not be ignored.

@@ -344,6 +344,8 @@ def extract_contactors_and_relays(input_file_path, pdf_relays):
 
 def save_devices_to_xlsx(devices, output_file_path):
     """Сохраняет все устройства (контакторы + реле) в Excel"""
+    from openpyxl.styles import Alignment
+    
     wb = Workbook()
     ws = wb.active
     ws.title = "Контакторы и реле"
@@ -360,16 +362,26 @@ def save_devices_to_xlsx(devices, output_file_path):
     ])
     
     for device in devices:
-        ws.append([
-            device["number"],
-            device["shield"],
-            device["scheme_designation"],
-            device["device_type"],
-            device["voltage"],
-            device["trip"],
-            device["return"],
-            device["source_scheme"]
-        ])
+        row_num = ws.max_row + 1
+        
+        # Простые значения
+        ws.cell(row=row_num, column=1, value=device["number"])
+        ws.cell(row=row_num, column=2, value=device["shield"])
+        ws.cell(row=row_num, column=3, value=device["scheme_designation"])
+        ws.cell(row=row_num, column=4, value=device["device_type"])
+        
+        # Напряжение - если начинается с '=', добавляем апостроф
+        voltage = device["voltage"]
+        if isinstance(voltage, str) and voltage.startswith('='):
+            cell_e = ws.cell(row=row_num, column=5, value="'" + voltage)
+            cell_e.number_format = '@'
+            cell_e.alignment = Alignment(horizontal='left')
+        else:
+            ws.cell(row=row_num, column=5, value=voltage)
+        
+        ws.cell(row=row_num, column=6, value=device["trip"])
+        ws.cell(row=row_num, column=7, value=device["return"])
+        ws.cell(row=row_num, column=8, value=device["source_scheme"])
     
     ws.column_dimensions['A'].width = 8
     ws.column_dimensions['B'].width = 30
