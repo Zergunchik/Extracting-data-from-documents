@@ -169,7 +169,7 @@ def run_script(script_name: str, input_file: Path, output_folder: Path,
         for f in output_folder.glob(f"{stem}_Реле*.xlsx"):
             if f.stat().st_mtime >= start_time - 0.5:
                 created.append(f)
-        for f in output_folder.glob(f"{stem}_Автоматические_выключатели_вторичных_цепей*.xlsx"):
+        for f in output_folder.glob(f"{stem}_Автоматические_выключатели*.xlsx"):
             if f.stat().st_mtime >= start_time - 0.5:
                 created.append(f)
     else:
@@ -178,7 +178,7 @@ def run_script(script_name: str, input_file: Path, output_folder: Path,
             "extract_current_transformer.py": f"{stem}_Трансформаторы тока.xlsx",
             "extract_contactors_with_relays.py": f"{stem}_Контакторы_и_реле.xlsx",
             "extract_circuit_breaker_from_baskets.py": f"{stem}_Автоматические_выключатели_в_корзинах.xlsx",
-            "extract_secondary_circuit_breaker.py": f"{stem}_Автоматические_выключатели_вторичных_цепей.xlsx",
+            "extract_secondary_circuit_breaker.py": f"{stem}_Автоматические_выключатели.xlsx",
         }
         if script_name in expected_names:
             candidate = output_folder / expected_names[script_name]
@@ -245,7 +245,7 @@ def process_files_for_operation(
             # Группируем файлы по типу для extract_specification.py
             if script_name == "extract_specification.py":
                 relay_files = [f for f in all_created if "Реле" in f.name]
-                breaker_files = [f for f in all_created if "Автоматические_выключатели_вторичных_цепей" in f.name]
+                breaker_files = [f for f in all_created if "Автоматические_выключатели" in f.name]
                 
                 merged_files = []
                 
@@ -262,7 +262,7 @@ def process_files_for_operation(
                 
                 # Объединяем файлы с автоматами
                 if breaker_files:
-                    breaker_suffix = "Автоматические выключатели вторичных цепей (объединенные)"
+                    breaker_suffix = "Объединенные Автоматические_выключатели"
                     breaker_merged_file = _safe_path(output_folder / f"{breaker_suffix}.xlsx")
                     merge_success, merge_msg = merge_excel_files(breaker_files, breaker_merged_file)
                     if merge_success:
@@ -281,11 +281,11 @@ def process_files_for_operation(
             else:
                 # Стандартная логика для других скриптов
                 suffix_map = {
-                    "extract_circuit_breaker.py": "Автоматические выключатели (объединенные)",
+                    "extract_circuit_breaker.py": "Объединенные Автоматические_выключатели",
                     "extract_current_transformer.py": "Трансформаторы тока (объединенные)",
                     "extract_contactors_with_relays.py": "Контакторы и реле (объединенные)",
                     "extract_circuit_breaker_from_baskets.py": "Автоматические выключатели в корзинах (объединенные)",
-                    "extract_secondary_circuit_breaker.py": "Автоматические выключатели вторичных цепей (объединенные)",
+                    "extract_secondary_circuit_breaker.py": "Объединенные Автоматические_выключатели",
                 }
                 suffix = suffix_map.get(script_name, "Объединенные результаты")
                 merged_file = _safe_path(output_folder / f"{suffix}.xlsx")

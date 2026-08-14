@@ -180,7 +180,7 @@ def main():
     # Ищем файлы с несколькими вариантами окончаний
     search_suffixes = [
         "Автоматические_выключатели.xlsx",
-        "Автоматические выключатели (объединенные).xlsx"
+        "Объединенные Автоматические_выключатели.xlsx"
     ]
     
     found_files = find_files_with_suffixes(source_directory, search_suffixes)
