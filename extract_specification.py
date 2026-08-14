@@ -1226,10 +1226,11 @@ def save_relays_to_xlsx(relays_list, output_file_path, voltage_map=None):
         else:
             ws.cell(row=row_num, column=3, value=relay_type)
         
-        # Напряжение - если начинается с '=', добавляем апостроф
+        # Напряжение - устанавливаем текстовый формат для значений с '='
         if isinstance(voltage, str) and voltage.startswith('='):
-            cell_d = ws.cell(row=row_num, column=4, value="'" + voltage)
-            cell_d.number_format = '@'
+            cell_d = ws.cell(row=row_num, column=4)
+            cell_d.number_format = '@'  # Текстовый формат
+            cell_d.value = voltage  # Записываем без апострофа
             cell_d.alignment = Alignment(horizontal='left')
         else:
             ws.cell(row=row_num, column=4, value=voltage)
@@ -1284,7 +1285,7 @@ def load_relay_voltage_memory(file_path):
             if row[0] and row[1]:
                 relay_type = str(row[0]).strip()
                 voltage = str(row[1]).strip()
-                # Удаляем апостроф в начале, если он есть (Excel добавляет его для текста с '=')
+                # Удаляем апостроф в начале, если он есть
                 if voltage.startswith("'"):
                     voltage = voltage[1:]
                 if voltage:  # Записываем только если напряжение не пустое
@@ -1322,12 +1323,12 @@ def save_relay_voltage_memory(file_path, new_voltages):
             # Тип реле
             ws.cell(row=row_num, column=1, value=r_type)
             
-            # Напряжение - если начинается с '=', добавляем апостроф как префикс
+            # Напряжение - устанавливаем текстовый формат для значений с '='
             if isinstance(voltage, str) and voltage.startswith('='):
-                # Добавляем апостроф перед значением - Excel распознает это как текст
-                cell = ws.cell(row=row_num, column=2, value="'" + voltage)
-                # Устанавливаем текстовый формат и выравнивание по левому краю
-                cell.number_format = '@'
+                # Устанавливаем текстовый формат и записываем значение без апострофа
+                cell = ws.cell(row=row_num, column=2)
+                cell.number_format = '@'  # Текстовый формат
+                cell.value = voltage  # Записываем без апострофа
                 cell.alignment = Alignment(horizontal='left')
             else:
                 ws.cell(row=row_num, column=2, value=voltage)

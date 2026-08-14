@@ -370,11 +370,12 @@ def save_devices_to_xlsx(devices, output_file_path):
         ws.cell(row=row_num, column=3, value=device["scheme_designation"])
         ws.cell(row=row_num, column=4, value=device["device_type"])
         
-        # Напряжение - если начинается с '=', добавляем апостроф
+        # Напряжение - устанавливаем текстовый формат для значений с '='
         voltage = device["voltage"]
         if isinstance(voltage, str) and voltage.startswith('='):
-            cell_e = ws.cell(row=row_num, column=5, value="'" + voltage)
-            cell_e.number_format = '@'
+            cell_e = ws.cell(row=row_num, column=5)
+            cell_e.number_format = '@'  # Текстовый формат
+            cell_e.value = voltage  # Записываем без апострофа
             cell_e.alignment = Alignment(horizontal='left')
         else:
             ws.cell(row=row_num, column=5, value=voltage)
