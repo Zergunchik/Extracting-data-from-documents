@@ -1071,17 +1071,35 @@ def save_relays_to_xlsx(relays_list, output_file_path):
     ws.append([
         "№ п/п",
         "Позиционное обозначение (KL/K/KLB)",
-        "Тип реле"
+        "Тип реле",
+        "Номинальное напряжение, В",
+        "Напряжение срабатывания",
+        "Напряжение Возврата",
+        "Контакты НО",
+        "Контакты НЗ",
+        "Заключение"
     ])
     for i, relay in enumerate(relays_list, 1):
         ws.append([
             i,
             relay.get('pos', ''),
-            relay.get('type', '')
+            relay.get('type', ''),
+            '',
+            '',
+            '',
+            '',
+            '',
+            'Соотв.'
         ])
     ws.column_dimensions['A'].width = 10
     ws.column_dimensions['B'].width = 25
     ws.column_dimensions['C'].width = 40
+    ws.column_dimensions['D'].width = 25
+    ws.column_dimensions['E'].width = 25
+    ws.column_dimensions['F'].width = 25
+    ws.column_dimensions['G'].width = 15
+    ws.column_dimensions['H'].width = 15
+    ws.column_dimensions['I'].width = 15
     wb.save(output_file_path)
     return output_file_path
 
