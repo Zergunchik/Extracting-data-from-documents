@@ -6,6 +6,17 @@ from openpyxl.utils import get_column_letter
 import sys
 import traceback
 import builtins
+import logging
+
+# Настраиваем логирование
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 def should_stop():
     """Проверяет, запросил ли пользователь остановку через GUI."""
@@ -30,7 +41,7 @@ def find_files_with_suffixes(directory, suffixes):
 def extract_data_from_source(source_file):
     """Извлечение данных из исходного файла из диапазона B2 и ниже (только столбцы B, C, D)"""
     try:
-        print(f"  Чтение файла: {os.path.basename(source_file)}")
+        logger.info(f"  Чтение файла: {os.path.basename(source_file)}")
         source_wb = openpyxl.load_workbook(source_file, data_only=True)
         source_ws = source_wb.active
         
@@ -43,7 +54,7 @@ def extract_data_from_source(source_file):
                 break
         
         if not has_any_data:
-            print(f"  В файле не найдено данных в колонке B")
+            logger.info(f"  В файле не найдено данных в колонке B")
             return None
         
         # Собираем данные только из столбцов B, C, D (колонки 2, 3, 4)
@@ -74,17 +85,17 @@ def extract_data_from_source(source_file):
             if row > 10000:
                 break
         
-        print(f"  Извлечено {len(source_data)} строк с данными (столбцы B, C, D)")
+        logger.info(f"  Извлечено {len(source_data)} строк с данными (столбцы B, C, D)")
         return source_data
         
     except Exception as e:
-        print(f"  Ошибка при чтении файла {source_file}: {e}")
+        logger.info(f"  Ошибка при чтении файла {source_file}: {e}")
         return None
 
 def merge_data_to_template(template_file, all_data, output_file):
     """Объединение всех данных в шаблон"""
     try:
-        print(f"Открываем файл шаблона: {template_file}")
+        logger.info(f"Открываем файл шаблона: {template_file}")
         template_wb = openpyxl.load_workbook(template_file)
         template_ws = template_wb.active
         
@@ -94,11 +105,11 @@ def merge_data_to_template(template_file, all_data, output_file):
             if data:
                 total_rows += len(data)
         
-        print(f"Всего строк для вставки: {total_rows}")
+        logger.info(f"Всего строк для вставки: {total_rows}")
         
         # Очищаем целевой диапазон от L4 и ниже
         max_row = template_ws.max_row
-        print("Очистка целевого диапазона...")
+        logger.info("Очистка целевого диапазона...")
         for row in range(4, max_row + 1):
             for col in [12, 13, 14]:   # только L, M, N
                 cell = template_ws.cell(row=row, column=col)
@@ -135,15 +146,15 @@ def merge_data_to_template(template_file, all_data, output_file):
                                     break
             
             current_row += len(file_data)
-            print(f"  Данные из файла {file_index + 1} добавлены (столбцы B,C,D -> L,M,N)")
+            logger.info(f"  Данные из файла {file_index + 1} добавлены (столбцы B,C,D -> L,M,N)")
         
         # Сохраняем объединенный файл
         template_wb.save(output_file)
-        print(f"Объединенные данные сохранены в: {output_file}")
+        logger.info(f"Объединенные данные сохранены в: {output_file}")
         return True
         
     except Exception as e:
-        print(f"Ошибка при объединении данных: {e}")
+        logger.info(f"Ошибка при объединении данных: {e}")
         traceback.print_exc()
         return False
 
@@ -164,18 +175,18 @@ def main():
         # Если аргументов нет, используем папку "Результаты" по умолчанию
         source_directory = str(default_output_dir)
         output_directory = default_output_dir
-        print(f"Папка не указана, используется папка по умолчанию: {source_directory}")
+        logger.info(f"Папка не указана, используется папка по умолчанию: {source_directory}")
     
     # Проверяем существование директории
     if not os.path.exists(source_directory):
-        print(f"Директория не найдена: {source_directory}")
-        print("Создаем папку по умолчанию...")
+        logger.info(f"Директория не найдена: {source_directory}")
+        logger.info("Создаем папку по умолчанию...")
         output_directory.mkdir(parents=True, exist_ok=True)
     
-    print(f"=" * 60)
-    print(f"Поиск файлов в директории: {source_directory}")
-    print(f"Результат будет сохранен в: {output_directory}")
-    print(f"=" * 60)
+    logger.info(f"=" * 60)
+    logger.info(f"Поиск файлов в директории: {source_directory}")
+    logger.info(f"Результат будет сохранен в: {output_directory}")
+    logger.info(f"=" * 60)
     
     # Ищем файлы с несколькими вариантами окончаний
     search_suffixes = [
@@ -186,28 +197,28 @@ def main():
     found_files = find_files_with_suffixes(source_directory, search_suffixes)
     
     if not found_files:
-        print(f"Не найдено файлов с указанными окончаниями:")
+        logger.info(f"Не найдено файлов с указанными окончаниями:")
         for suffix in search_suffixes:
-            print(f"  - {suffix}")
+            logger.info(f"  - {suffix}")
         sys.exit(1)
     
-    print(f"Найдено файлов: {len(found_files)}")
+    logger.info(f"Найдено файлов: {len(found_files)}")
     for i, file_path in enumerate(found_files, 1):
-        print(f"  {i}. {os.path.basename(file_path)}")
+        logger.info(f"  {i}. {os.path.basename(file_path)}")
     
     # Путь к файлу шаблона
     template_path = script_dir / "Шаблон для автоматов.xlsx"
     
     if not template_path.exists():
-        print(f"Файл шаблона не найден: {template_path}")
+        logger.info(f"Файл шаблона не найден: {template_path}")
         sys.exit(1)
     
-    print(f"\nФайл шаблона найден: {template_path}")
+    logger.info(f"\nФайл шаблона найден: {template_path}")
     
     # Извлекаем данные из всех файлов
-    print(f"\n" + "=" * 60)
-    print("Извлечение данных из файлов (только столбцы B, C, D):")
-    print("=" * 60)
+    logger.info(f"\n" + "=" * 60)
+    logger.info("Извлечение данных из файлов (только столбцы B, C, D):")
+    logger.info("=" * 60)
     
     all_data = []
     successful_files = 0
@@ -220,10 +231,10 @@ def main():
         else:
             all_data.append(None)
     
-    print(f"\nУспешно прочитано файлов: {successful_files} из {len(found_files)}")
+    logger.info(f"\nУспешно прочитано файлов: {successful_files} из {len(found_files)}")
     
     if successful_files == 0:
-        print("Нет данных для объединения")
+        logger.info("Нет данных для объединения")
         sys.exit(1)
     
     # Создаем имя для выходного файла с временной меткой
@@ -241,31 +252,31 @@ def main():
     backup_path = script_dir / "Шаблон для автоматов_backup.xlsx"
     if not backup_path.exists():
         shutil.copy2(template_path, backup_path)
-        print(f"Создана резервная копия шаблона: {backup_path}")
+        logger.info(f"Создана резервная копия шаблона: {backup_path}")
     
     # Объединяем данные в шаблон
-    print(f"\n" + "=" * 60)
-    print("Объединение данных в шаблон (B,C,D -> L,M,N):")
-    print("=" * 60)
+    logger.info(f"\n" + "=" * 60)
+    logger.info("Объединение данных в шаблон (B,C,D -> L,M,N):")
+    logger.info("=" * 60)
     
     if merge_data_to_template(template_path, all_data, output_path):
-        print(f"\n" + "=" * 60)
-        print("УСПЕШНО! Все данные объединены в один файл:")
-        print(f"  {output_path}")
-        print(f"  Столбцы B,C,D скопированы в L,M,N соответственно")
-        print("=" * 60)
+        logger.info(f"\n" + "=" * 60)
+        logger.info("УСПЕШНО! Все данные объединены в один файл:")
+        logger.info(f"  {output_path}")
+        logger.info(f"  Столбцы B,C,D скопированы в L,M,N соответственно")
+        logger.info("=" * 60)
         
         # Также сохраняем копию в папку скрипта для обратной совместимости
         #script_output_path = script_dir / output_filename
         #if output_path != script_output_path:
             #shutil.copy2(output_path, script_output_path)
-            #print(f"Копия сохранена также в: {script_output_path}")
+            #logger.info(f"Копия сохранена также в: {script_output_path}")
     else:
-        print("\n[ОШИБКА] Не удалось объединить данные")
+        logger.info("\n[ОШИБКА] Не удалось объединить данные")
         # Восстанавливаем шаблон из резервной копии при ошибке
         if backup_path.exists():
             shutil.copy2(backup_path, template_path)
-            print("Шаблон восстановлен из резервной копии")
+            logger.info("Шаблон восстановлен из резервной копии")
         sys.exit(1)
 
 if __name__ == "__main__":

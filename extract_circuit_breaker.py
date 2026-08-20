@@ -4,6 +4,17 @@ import re
 from openpyxl import load_workbook, Workbook
 from pathlib import Path
 import builtins
+import logging
+
+# Настраиваем логирование
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 def should_stop():
     """Проверяет, запросил ли пользователь остановку через GUI."""
@@ -17,8 +28,8 @@ OUTPUT_DIR = None  # Глобальная переменная для папки
 def load_nominal_library(library_path):
     """Загружает библиотеку соответствий типов автоматов и номинальных токов"""
     if not os.path.exists(library_path):
-        print(f"❌ Ошибка: Файл библиотеки '{library_path}' не найден!")
-        print("   Файл Library_nominals.xlsx должен находиться в той же папке, что и скрипт.")
+        logger.info(f"❌ Ошибка: Файл библиотеки '{library_path}' не найден!")
+        logger.info("   Файл Library_nominals.xlsx должен находиться в той же папке, что и скрипт.")
         return None
     
     try:
@@ -41,7 +52,7 @@ def load_nominal_library(library_path):
                         col_nominal = col
         
         if col_type is None or col_nominal is None:
-            print("❌ Ошибка: Не удалось найти заголовки в файле библиотеки!")
+            logger.info("❌ Ошибка: Не удалось найти заголовки в файле библиотеки!")
             return None
         
         library = {}
@@ -56,13 +67,13 @@ def load_nominal_library(library_path):
                     nominal_float = float(nominal_value)
                     library[type_str] = nominal_float
                 except (ValueError, TypeError):
-                    print(f"⚠️ Предупреждение: Пропущена строка {row}: неверное значение номинала '{nominal_value}'")
+                    logger.info(f"⚠️ Предупреждение: Пропущена строка {row}: неверное значение номинала '{nominal_value}'")
         
-        print(f"✅ Загружено соответствий из библиотеки: {len(library)}")
+        logger.info(f"✅ Загружено соответствий из библиотеки: {len(library)}")
         return library
         
     except Exception as e:
-        print(f"❌ Ошибка при загрузке библиотеки: {e}")
+        logger.info(f"❌ Ошибка при загрузке библиотеки: {e}")
         return None
 
 def extract_nominal_current_from_library(type_value, library):
@@ -124,11 +135,11 @@ def find_column_by_header(sheet, target_headers, check_content_for_q=False):
         for candidate in candidate_columns:
             for sample in candidate["samples"]:
                 if 'q' in sample.lower():
-                    print(f"   ✅ Выбран столбец '{candidate['header_text']}' (содержит Q в значениях: {sample})")
+                    logger.info(f"   ✅ Выбран столбец '{candidate['header_text']}' (содержит Q в значениях: {sample})")
                     return candidate["col"], candidate["header_row"]
         
         # Если ни в одном образце нет Q, но есть кандидаты - берём первый
-        print(f"   ⚠️ В значениях не найдена буква Q, берём первый кандидат: '{candidate_columns[0]['header_text']}'")
+        logger.info(f"   ⚠️ В значениях не найдена буква Q, берём первый кандидат: '{candidate_columns[0]['header_text']}'")
         return candidate_columns[0]["col"], candidate_columns[0]["header_row"]
     
     # Иначе берём первый найденный
@@ -174,8 +185,8 @@ def process_xlsx(input_file_path, library):
     wb = load_workbook(input_file_path, data_only=True)
     sheet = wb.active
     
-    print(f"Обработка листа: {sheet.title}")
-    print("=" * 50)
+    logger.info(f"Обработка листа: {sheet.title}")
+    logger.info("=" * 50)
     
     col_fider, header_row_fider = find_column_by_header(sheet, [
         "Позиционное обозначение фидера",
@@ -194,20 +205,20 @@ def process_xlsx(input_file_path, library):
     ])
     
     if col_fider is None:
-        print("❌ Столбец 'Позиционное обозначение фидера' не найден!")
+        logger.info("❌ Столбец 'Позиционное обозначение фидера' не найден!")
         return [], [], None, None
     
     if col_type is None:
-        print("❌ Столбец 'Тип автомата/коммутационного блока' не найден!")
+        logger.info("❌ Столбец 'Тип автомата/коммутационного блока' не найден!")
         return [], [], None, None
     
     header_row = max(header_row_fider, header_row_type)
     data_start_row = find_data_start_row(sheet, header_row, col_fider, col_type)
     
-    print(f"✅ Найден столбец фидера: {col_fider} (строка заголовка: {header_row_fider})")
-    print(f"✅ Найден столбец типа автомата: {col_type} (строка заголовка: {header_row_type})")
-    print(f"📌 Данные начинаются с строки: {data_start_row}")
-    print("=" * 50)
+    logger.info(f"✅ Найден столбец фидера: {col_fider} (строка заголовка: {header_row_fider})")
+    logger.info(f"✅ Найден столбец типа автомата: {col_type} (строка заголовка: {header_row_type})")
+    logger.info(f"📌 Данные начинаются с строки: {data_start_row}")
+    logger.info("=" * 50)
     
     results_automats = []
     errors_automats = []
@@ -216,7 +227,7 @@ def process_xlsx(input_file_path, library):
     
     for row_idx in range(data_start_row, sheet.max_row + 1):
         if should_stop():
-            print("⏹️ Остановка по запросу пользователя")
+            logger.info("⏹️ Остановка по запросу пользователя")
             return results_automats, errors_automats, col_fider, col_type
         fider_value = sheet.cell(row=row_idx, column=col_fider).value
         type_value = sheet.cell(row=row_idx, column=col_type).value
@@ -260,9 +271,9 @@ def process_xlsx(input_file_path, library):
         counter += 1
     
     if library:
-        print(f"\n📊 Статистика определения токов автоматов:")
-        print(f"   - Найдено в библиотеке: {found_matches}")
-        print(f"   - Не найдено в библиотеке: {len(errors_automats)}")
+        logger.info(f"\n📊 Статистика определения токов автоматов:")
+        logger.info(f"   - Найдено в библиотеке: {found_matches}")
+        logger.info(f"   - Не найдено в библиотеке: {len(errors_automats)}")
     
     return results_automats, errors_automats, col_fider, col_type
 
@@ -304,7 +315,7 @@ def save_automats_to_xlsx(results, errors, output_file_path):
         ws_errors.column_dimensions['B'].width = 40
         ws_errors.column_dimensions['C'].width = 25
         
-        print(f"\n⚠️ Найдено уникальных типов автоматов, отсутствующих в библиотеке: {len(unique_errors)}")
+        logger.info(f"\n⚠️ Найдено уникальных типов автоматов, отсутствующих в библиотеке: {len(unique_errors)}")
     
     wb.save(output_file_path)
     return output_file_path
@@ -337,32 +348,32 @@ def main():
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     
     if len(sys.argv) < 2:
-        print("Использование: перетащите XLSX файл на этот скрипт")
-        print("\nПримечание: Файл библиотеки 'Library_nominals.xlsx' должен находиться в той же папке, что и скрипт")
+        logger.info("Использование: перетащите XLSX файл на этот скрипт")
+        logger.info("\nПримечание: Файл библиотеки 'Library_nominals.xlsx' должен находиться в той же папке, что и скрипт")
         wait_for_exit()
         return
     
     input_file_path = sys.argv[1]
     
     if not os.path.exists(input_file_path):
-        print(f"Ошибка: Файл '{input_file_path}' не найден!")
+        logger.info(f"Ошибка: Файл '{input_file_path}' не найден!")
         wait_for_exit()
         return
     
     script_dir = os.path.dirname(os.path.abspath(__file__))
     library_path = os.path.join(script_dir, "Library_nominals.xlsx")
     
-    print(f"\n📁 Обработка файла: {os.path.basename(input_file_path)}")
-    print("=" * 50)
+    logger.info(f"\n📁 Обработка файла: {os.path.basename(input_file_path)}")
+    logger.info("=" * 50)
     
     library = load_nominal_library(library_path)
     
     if library is None:
-        print("\n❌ Невозможно продолжить: библиотека номиналов не загружена!")
+        logger.info("\n❌ Невозможно продолжить: библиотека номиналов не загружена!")
         wait_for_exit()
         return
     
-    print("=" * 50)
+    logger.info("=" * 50)
     
     try:
         results_automats, errors_automats, col_fider, col_type = process_xlsx(input_file_path, library)
@@ -379,12 +390,12 @@ def main():
         
         if results_automats:
             save_automats_to_xlsx(results_automats, errors_automats, str(output_automats_path))
-            print(f"\n✅ Обработано фидеров (автоматы): {len(results_automats)}")
-            print(f"❌ Не удалось определить ток (нет в библиотеке): {len(errors_automats)}")
-            print(f"📁 Результат по автоматам сохранён в: {output_automats_path}")
+            logger.info(f"\n✅ Обработано фидеров (автоматы): {len(results_automats)}")
+            logger.info(f"❌ Не удалось определить ток (нет в библиотеке): {len(errors_automats)}")
+            logger.info(f"📁 Результат по автоматам сохранён в: {output_automats_path}")
         
             if errors_automats:
-                print(f"\n⚠️ Строки автоматов, требующие добавления в библиотеку:")
+                logger.info(f"\n⚠️ Строки автоматов, требующие добавления в библиотеку:")
                 
                 # Собираем уникальные типы для вывода в формате, понятном веб-интерфейсу
                 unique_error_types = {}
@@ -397,24 +408,24 @@ def main():
                 for error_type in sorted(unique_error_types.keys()):
                     err = unique_error_types[error_type]
                     # Формат: [тип 'XXX' не найден в библиотеке]
-                    print(f"   - [тип '{err['type']}' не найден в библиотеке]")
+                    logger.info(f"   - [тип '{err['type']}' не найден в библиотеке]")
                 
                 # Для информации показываем статистику
-                print(f"\n📊 Всего уникальных типов, отсутствующих в библиотеке: {len(unique_error_types)}")
-                print(f"   Общее количество строк с ошибками: {len(errors_automats)}")
+                logger.info(f"\n📊 Всего уникальных типов, отсутствующих в библиотеке: {len(unique_error_types)}")
+                logger.info(f"   Общее количество строк с ошибками: {len(errors_automats)}")
                 
                 # Показываем первые 5 для наглядности (опционально)
                 if len(errors_automats) > 0:
-                    print(f"\n   Примеры (первые 5 из {len(errors_automats)}):")
+                    logger.info(f"\n   Примеры (первые 5 из {len(errors_automats)}):")
                     for err in errors_automats[:5]:
-                        print(f"      №{err.get('number', '?')}: {err['fider']} → {err['type'][:40]}")
+                        logger.info(f"      №{err.get('number', '?')}: {err['fider']} → {err['type'][:40]}")
     
     except Exception as e:
-        print(f"\n❌ Ошибка: {e}")
+        logger.info(f"\n❌ Ошибка: {e}")
         import traceback
         traceback.print_exc()
     
-    print("\n" + "=" * 50)
+    logger.info("\n" + "=" * 50)
     wait_for_exit()
 
 if __name__ == "__main__":
