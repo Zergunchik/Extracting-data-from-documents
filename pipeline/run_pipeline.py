@@ -18,7 +18,7 @@
 import sys
 import os
 from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, Callable
 
 # Добавляем корневую директорию в путь для импорта cache_manager
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -32,7 +32,8 @@ def run_full_pipeline(
     pdf_path: str,
     output_dir: Optional[str] = None,
     use_cache: bool = True,
-    skip_voltage_dialog: bool = False
+    skip_voltage_dialog: bool = False,
+    progress_callback: Optional[Callable[[int, str], None]] = None
 ) -> Dict[str, Any]:
     """
     Запускает полный конвейер обработки PDF файла.
@@ -91,6 +92,9 @@ def run_full_pipeline(
     print("ЭТАП 1/3: Распознавание PDF и извлечение данных")
     print("=" * 60)
     
+    if progress_callback:
+        progress_callback(5, "Распознавание PDF: чтение текста...")
+    
     temp_excel = extract_pdf_to_excel(
         pdf_path=str(pdf_path),
         output_dir=output_dir,
@@ -100,7 +104,12 @@ def run_full_pipeline(
     if not temp_excel:
         error_msg = "Ошибка выполнения этапа 1: не удалось извлечь данные из PDF"
         result['errors'].append(error_msg)
+        if progress_callback:
+            progress_callback(15, "Ошибка: не удалось распознать PDF")
         return result
+    
+    if progress_callback:
+        progress_callback(20, "Распознавание PDF: извлечение таблиц...")
     
     result['stages']['stage1']['success'] = True
     result['stages']['stage1']['output'] = temp_excel
@@ -113,12 +122,18 @@ def run_full_pipeline(
     print("ЭТАП 2/3: Извлечение автоматических выключателей")
     print("=" * 60)
     
+    if progress_callback:
+        progress_callback(30, "Извлечение автоматов: обработка страниц Excel...")
+    
     breakers, breakers_file = extract_breakers_from_excel(
         input_excel_path=temp_excel,
         output_dir=output_dir,
         apply_nominals=True,
         pdf_name=pdf_file.stem
     )
+    
+    if progress_callback:
+        progress_callback(45, "Извлечение автоматов: применение библиотеки номиналов...")
     
     result['stages']['stage2']['success'] = True
     result['stages']['stage2']['output'] = breakers_file
@@ -132,6 +147,9 @@ def run_full_pipeline(
     print("ЭТАП 3/3: Извлечение реле")
     print("=" * 60)
     
+    if progress_callback:
+        progress_callback(55, "Извлечение реле: анализ структуры данных...")
+    
     relays, relays_file = extract_relays_from_excel(
         input_excel_path=temp_excel,
         output_dir=output_dir,
@@ -139,10 +157,16 @@ def run_full_pipeline(
         skip_voltage_dialog=skip_voltage_dialog
     )
     
+    if progress_callback:
+        progress_callback(70, "Извлечение реле: определение типов реле...")
+    
     result['stages']['stage3']['success'] = True
     result['stages']['stage3']['output'] = relays_file
     result['stages']['stage3']['count'] = len(relays)
     print(f"✅ Этап 3 завершен: найдено {len(relays)} реле")
+    
+    if progress_callback:
+        progress_callback(85, "Сохранение результатов...")
     
     # ==========================================
     # ИТОГОВЫЙ ОТЧЕТ
@@ -155,6 +179,10 @@ def run_full_pipeline(
     print(f"Реле: {len(relays)} шт." + (f" → {relays_file}" if relays_file else ""))
     
     result['success'] = True
+    
+    if progress_callback:
+        progress_callback(100, "Обработка завершена успешно")
+    
     return result
 
 
@@ -210,7 +238,8 @@ def main():
         pdf_path=pdf_path,
         output_dir=output_dir,
         use_cache=use_cache,
-        skip_voltage_dialog=skip_voltage_dialog
+        skip_voltage_dialog=skip_voltage_dialog,
+        progress_callback=None  # В режиме командной строки callback не используется
     )
     
     if result['success']:

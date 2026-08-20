@@ -436,16 +436,25 @@ def process_relays_from_pdf(
         if stop_check and stop_check():
             break
 
+        # Детализированные сообщения прогресса для PDF pipeline
         if progress_callback:
-            progress_callback(int((i + 1) / len(files) * 50), f"Реле из PDF... ({i + 1}/{len(files)})")
-
+            base_progress = int((i + 1) / len(files) * 100)
+            # Передаем детальные статусы для каждого файла
+            progress_callback(base_progress // 4, f"Распознавание PDF: чтение текста... ({i + 1}/{len(files)})")
+        
         try:
             success, msg, output, created = run_script(
                 script_name, file, temp_output, current_folder, use_frozen,
                 merge_mode=False, process_holder=process_holder,
-                stop_check=stop_check
+                stop_check=stop_check, is_pipeline=(script_name == "run_pipeline.py")
             )
             all_created.extend(created)
+            
+            # Обновляем прогресс после успешной обработки
+            if progress_callback:
+                progress_callback(base_progress // 2, f"Извлечение автоматов: обработка страниц Excel... ({i + 1}/{len(files)})")
+                progress_callback(int(base_progress * 0.75), f"Извлечение реле: анализ структуры данных... ({i + 1}/{len(files)})")
+                progress_callback(base_progress, f"Сохранение результатов... ({i + 1}/{len(files)})")
         except Exception as e:
             # Логируем ошибку, но продолжаем обработку остальных файлов
             if progress_callback:
