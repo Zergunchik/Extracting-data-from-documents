@@ -6,6 +6,17 @@ import pdfplumber
 from openpyxl import load_workbook, Workbook
 from pathlib import Path
 import builtins
+import logging
+
+# Настраиваем логирование
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 def should_stop():
     """Проверяет, запросил ли пользователь остановку через GUI."""
@@ -89,10 +100,10 @@ def extract_relays_from_pdf(pdf_path):
     relays_data = {}
     
     if not pdf_path or not os.path.exists(pdf_path):
-        print("⚠️ PDF с КТС не найден. Реле не будут определены.")
+        logger.info("⚠️ PDF с КТС не найден. Реле не будут определены.")
         return relays_data
     
-    print(f"📄 Обработка PDF: {os.path.basename(pdf_path)}")
+    logger.info(f"📄 Обработка PDF: {os.path.basename(pdf_path)}")
     
     with pdfplumber.open(pdf_path) as pdf:
         full_text = ""
@@ -189,7 +200,7 @@ def extract_relays_from_pdf(pdf_path):
                 if pos not in unique_relays:
                     unique_relays[pos] = model
             relays_data[scheme_num] = list(unique_relays.items())
-            print(f"   Схема {scheme_num}: найдено реле {len(unique_relays)} шт. - {list(unique_relays.keys())}")
+            logger.info(f"   Схема {scheme_num}: найдено реле {len(unique_relays)} шт. - {list(unique_relays.keys())}")
     
     return relays_data
 
@@ -238,15 +249,15 @@ def extract_contactors_and_relays(input_file_path, pdf_relays):
     wb = load_workbook(input_file_path, data_only=True)
     sheet = wb.active
     
-    print(f"Обработка листа: {sheet.title}")
-    print("=" * 50)
+    logger.info(f"Обработка листа: {sheet.title}")
+    logger.info("=" * 50)
     
     shield_name = extract_shield_name(sheet)
-    print(f"Наименование щита: {shield_name}")
+    logger.info(f"Наименование щита: {shield_name}")
     
     header_row = find_headers_row(sheet)
     if header_row is None:
-        print("❌ Не найдена строка с заголовками!")
+        logger.info("❌ Не найдена строка с заголовками!")
         return [], shield_name
     
     col_module = find_column_by_header(sheet, header_row, ["Позиционное обозначение выкатного модуля"])
@@ -254,15 +265,15 @@ def extract_contactors_and_relays(input_file_path, pdf_relays):
     col_scheme = find_column_by_header(sheet, header_row, ["№ схемы КТС/Э3"])
     
     if col_module is None:
-        print("❌ Столбец 'Позиционное обозначение выкатного модуля' не найден!")
+        logger.info("❌ Столбец 'Позиционное обозначение выкатного модуля' не найден!")
         return [], shield_name
     
-    print(f"✅ Столбец корзины: {col_module}")
+    logger.info(f"✅ Столбец корзины: {col_module}")
     if col_contactor:
-        print(f"✅ Столбец контактора: {col_contactor}")
+        logger.info(f"✅ Столбец контактора: {col_contactor}")
     if col_scheme:
-        print(f"✅ Столбец схемы КТС: {col_scheme}")
-    print("=" * 50)
+        logger.info(f"✅ Столбец схемы КТС: {col_scheme}")
+    logger.info("=" * 50)
     
     # Сбор данных о модулях (корзинах)
     modules_data = []
@@ -334,11 +345,11 @@ def extract_contactors_and_relays(input_file_path, pdf_relays):
     contactors_count = len([d for d in all_devices if d['device_category'] == 'Контактор'])
     relays_count = len([d for d in all_devices if d['device_category'] == 'Реле'])
     
-    print(f"\n📊 ИТОГО:")
-    print(f"   - Корзин обработано: {len(modules_data)}")
-    print(f"   - Контакторов: {contactors_count}")
-    print(f"   - Реле (из PDF): {relays_count}")
-    print(f"   - Всего устройств: {len(all_devices)}")
+    logger.info(f"\n📊 ИТОГО:")
+    logger.info(f"   - Корзин обработано: {len(modules_data)}")
+    logger.info(f"   - Контакторов: {contactors_count}")
+    logger.info(f"   - Реле (из PDF): {relays_count}")
+    logger.info(f"   - Всего устройств: {len(all_devices)}")
     
     return all_devices, shield_name
 
@@ -397,54 +408,54 @@ def main():
     if is_gui_mode:
         args = [arg for arg in sys.argv[1:] if arg != '--from-gui']
         if not args:
-            print("❌ Ошибка: не указан путь к файлу!")
+            logger.info("❌ Ошибка: не указан путь к файлу!")
             return
         input_file_path = args[0]
     else:
         if len(sys.argv) < 2:
-            print("Использование: перетащите XLSX файл на этот скрипт")
+            logger.info("Использование: перетащите XLSX файл на этот скрипт")
             input("\nНажмите Enter для выхода...")
             return
         input_file_path = sys.argv[1]
     
     if not os.path.exists(input_file_path):
-        print(f"❌ Ошибка: Файл '{input_file_path}' не найден!")
+        logger.info(f"❌ Ошибка: Файл '{input_file_path}' не найден!")
         if not is_gui_mode:
             input("Нажмите Enter для выхода...")
         return
     
     if output_dir:
         Path(output_dir).mkdir(parents=True, exist_ok=True)
-        print(f"📁 Папка вывода: {output_dir}")
+        logger.info(f"📁 Папка вывода: {output_dir}")
     
-    print(f"\n📁 Обработка файла: {os.path.basename(input_file_path)}")
-    print("=" * 50)
+    logger.info(f"\n📁 Обработка файла: {os.path.basename(input_file_path)}")
+    logger.info("=" * 50)
     
     excel_folder = os.path.dirname(os.path.abspath(input_file_path))
-    print(f"📁 Поиск PDF с КТС в папке с Excel файлом: {excel_folder}")
+    logger.info(f"📁 Поиск PDF с КТС в папке с Excel файлом: {excel_folder}")
     
     ktc_pdf = find_ktc_pdf(excel_folder)
     
     if ktc_pdf:
-        print(f"✅ Найден PDF: {os.path.basename(ktc_pdf)}")
+        logger.info(f"✅ Найден PDF: {os.path.basename(ktc_pdf)}")
     else:
-        print(f"⚠️ PDF с 'КТС' в названии не найден в папке с Excel файлом!")
-        print(f"   Папка Excel: {excel_folder}")
-        print(f"   Реле не будут определены.")
+        logger.info(f"⚠️ PDF с 'КТС' в названии не найден в папке с Excel файлом!")
+        logger.info(f"   Папка Excel: {excel_folder}")
+        logger.info(f"   Реле не будут определены.")
     
     relays_dict = extract_relays_from_pdf(ktc_pdf)
     
     if relays_dict:
-        print(f"\n📊 Найдено схем с реле: {len(relays_dict)}")
+        logger.info(f"\n📊 Найдено схем с реле: {len(relays_dict)}")
         total_relays = sum(len(v) for v in relays_dict.values())
-        print(f"📊 Всего позиций реле: {total_relays}")
+        logger.info(f"📊 Всего позиций реле: {total_relays}")
         first_scheme = next(iter(relays_dict.items())) if relays_dict else None
         if first_scheme:
-            print(f"📋 Пример (схема {first_scheme[0]}): {first_scheme[1][:3]}...")
+            logger.info(f"📋 Пример (схема {first_scheme[0]}): {first_scheme[1][:3]}...")
     else:
-        print("\n⚠️ Реле в PDF не найдены или PDF отсутствует.")
+        logger.info("\n⚠️ Реле в PDF не найдены или PDF отсутствует.")
     
-    print("=" * 50)
+    logger.info("=" * 50)
     
     try:
         devices, shield_name = extract_contactors_and_relays(input_file_path, relays_dict)
@@ -457,19 +468,19 @@ def main():
                 output_path = f"{base_name}_Контакторы_и_реле.xlsx"
             
             save_devices_to_xlsx(devices, output_path)
-            print(f"\n✅ Обработано устройств: {len(devices)}")
-            print(f"   - Контакторов: {len([d for d in devices if d['device_category'] == 'Контактор'])}")
-            print(f"   - Реле: {len([d for d in devices if d['device_category'] == 'Реле'])}")
-            print(f"📁 Результат сохранён в: {os.path.basename(output_path)}")
+            logger.info(f"\n✅ Обработано устройств: {len(devices)}")
+            logger.info(f"   - Контакторов: {len([d for d in devices if d['device_category'] == 'Контактор'])}")
+            logger.info(f"   - Реле: {len([d for d in devices if d['device_category'] == 'Реле'])}")
+            logger.info(f"📁 Результат сохранён в: {os.path.basename(output_path)}")
         else:
-            print("\n⚠️ Устройства не найдены в файле!")
+            logger.info("\n⚠️ Устройства не найдены в файле!")
     
     except Exception as e:
-        print(f"\n❌ Ошибка: {e}")
+        logger.info(f"\n❌ Ошибка: {e}")
         import traceback
         traceback.print_exc()
     
-    print("\n" + "=" * 50)
+    logger.info("\n" + "=" * 50)
     
     if not is_gui_mode:
         input("Нажмите Enter для выхода...")

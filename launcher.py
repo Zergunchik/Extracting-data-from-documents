@@ -5,6 +5,17 @@ import subprocess
 import importlib
 import site
 from pathlib import Path
+import logging
+
+# Настраиваем логирование
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Отключаем цветной вывод для Windows, чтобы избежать проблем с кодировкой
 USE_COLORS = False  # Принудительно отключаем цвета
@@ -34,14 +45,9 @@ def safe_print(text, end='\n'):
         text = text.replace('🗑️', '[УДАЛЕНИЕ]')
         text = text.replace('💾', '[СОХРАНЕНИЕ]')
         
-        # Пытаемся закодировать в cp1251 для Windows
-        try:
-            encoded = text.encode('cp1251', errors='replace').decode('cp1251')
-            print(encoded, end=end)
-        except:
-            print(text, end=end)
-    except:
-        print(text, end=end)
+        logger.info(text)
+    except Exception as e:
+        logger.error(f"Ошибка при выводе сообщения: {e}")
 
 def is_gui_mode():
     """Определяет, запущено ли приложение в GUI-режиме"""
@@ -107,7 +113,7 @@ def check_dependency(package_name):
             importlib.import_module(import_name)
             return True
     except ImportError as e:
-        print(f"Import error for {package_name}: {e}")
+        logger.error(f"Import error for {package_name}: {e}")
         return False
 
 def check_all_dependencies():
@@ -259,7 +265,7 @@ def show_install_dialog(missing_packages):
         return response
         
     except Exception as e:
-        print(f"Ошибка при показе диалога: {e}")
+        logger.error(f"Ошибка при показе диалога: {e}")
         # Если не удалось показать GUI диалог, используем консоль
         try:
             response = input("Установить отсутствующие пакеты? (y/n): ").strip().lower()

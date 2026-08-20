@@ -4,6 +4,17 @@ import re
 from openpyxl import load_workbook, Workbook
 from pathlib import Path
 import builtins
+import logging
+
+# Настраиваем логирование
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 def should_stop():
     """Проверяет, запросил ли пользователь остановку через GUI."""
@@ -206,8 +217,8 @@ def process_xlsx(input_file_path):
     """Обработка XLSX файла с таблицей фидеров (только трансформаторы)"""
     wb = load_workbook(input_file_path, data_only=True)
     sheet = wb.active
-    print(f"Обработка листа: {sheet.title}")
-    print("=" * 50)
+    logger.info(f"Обработка листа: {sheet.title}")
+    logger.info("=" * 50)
 
     col_fider, header_row_fider = find_column_by_header(sheet, [
         "Позиционное обозначение фидера",
@@ -229,7 +240,7 @@ def process_xlsx(input_file_path):
     col_tt_type, col_tt_quantity, header_row_tt = find_transformer_columns(sheet, col_fider)
 
     if col_fider is None:
-        print("❌ Столбец 'Позиционное обозначение фидера' не найден!")
+        logger.info("❌ Столбец 'Позиционное обозначение фидера' не найден!")
         return [], None, None, None, None
 
     header_row = header_row_fider
@@ -240,31 +251,31 @@ def process_xlsx(input_file_path):
 
     data_start_row = find_data_start_row(sheet, header_row, col_fider, col_tt_type)
 
-    print(f"✅ Найден столбец фидера: {col_fider} (строка заголовка: {header_row_fider})")
+    logger.info(f"✅ Найден столбец фидера: {col_fider} (строка заголовка: {header_row_fider})")
 
     if col_load_name:
-        print(f"✅ Найден столбец наименования нагрузки: {col_load_name} (строка заголовка: {header_row_load})")
+        logger.info(f"✅ Найден столбец наименования нагрузки: {col_load_name} (строка заголовка: {header_row_load})")
     else:
-        print("⚠️ Столбец 'Наименование нагрузки' не найден")
+        logger.info("⚠️ Столбец 'Наименование нагрузки' не найден")
 
     if col_tt_type:
-        print(f"✅ Найден столбец измерительного трансформатора (тип): {col_tt_type}")
+        logger.info(f"✅ Найден столбец измерительного трансформатора (тип): {col_tt_type}")
     else:
-        print("⚠️ Столбец 'Измерительный трансформатор' не найден!")
+        logger.info("⚠️ Столбец 'Измерительный трансформатор' не найден!")
         return [], None, None, None, None
         
     if col_tt_quantity:
-        print(f"✅ Найден столбец измерительного трансформатора (количество): {col_tt_quantity}")
+        logger.info(f"✅ Найден столбец измерительного трансформатора (количество): {col_tt_quantity}")
 
-    print(f"📌 Данные начинаются с строки: {data_start_row}")
-    print("=" * 50)
+    logger.info(f"📌 Данные начинаются с строки: {data_start_row}")
+    logger.info("=" * 50)
 
     transformers = []
     counter = 1  # Общий порядковый номер для № п/п
 
     for row_idx in range(data_start_row, sheet.max_row + 1):
         if should_stop():
-            print("⏹️ Остановка по запросу пользователя")
+            logger.info("⏹️ Остановка по запросу пользователя")
             return transformers, col_fider, col_tt_type, col_tt_quantity, header_row
         fider_value = sheet.cell(row=row_idx, column=col_fider).value 
         
@@ -341,8 +352,8 @@ def process_xlsx(input_file_path):
                         })
                         counter += 1
 
-    print(f"\n📊 Статистика трансформаторов тока:")
-    print(f"   - Найдено трансформаторов: {len(transformers)}")
+    logger.info(f"\n📊 Статистика трансформаторов тока:")
+    logger.info(f"   - Найдено трансформаторов: {len(transformers)}")
 
     return transformers, col_fider, col_tt_type, col_tt_quantity, header_row
 
@@ -374,7 +385,7 @@ def save_transformers_to_xlsx(transformers, output_file_path):
     ws.column_dimensions['G'].width = 20
 
     wb.save(output_file_path)
-    print(f"📁 Файл с трансформаторами сохранён: {os.path.basename(output_file_path)}")
+    logger.info(f"📁 Файл с трансформаторами сохранён: {os.path.basename(output_file_path)}")
     return output_file_path
 
 def main():
@@ -399,13 +410,13 @@ def main():
         # Убираем аргумент --from-gui из списка
         args = [arg for arg in sys.argv[1:] if arg != '--from-gui']
         if not args:
-            print("❌ Ошибка: не указан путь к файлу!")
+            logger.info("❌ Ошибка: не указан путь к файлу!")
             return
         input_file_path = args[0]
     else:
         if len(sys.argv) < 2:
-            print("Использование: перетащите XLSX файл на этот скрипт")
-            print("\nСкрипт извлекает информацию о трансформаторах тока из таблицы фидеров")
+            logger.info("Использование: перетащите XLSX файл на этот скрипт")
+            logger.info("\nСкрипт извлекает информацию о трансформаторах тока из таблицы фидеров")
             return
         input_file_path = sys.argv[1]
 
@@ -425,20 +436,20 @@ def main():
         if transformers:
             output_transformers_path = output_dir_path / f"{base_name}_Трансформаторы тока.xlsx"
             save_transformers_to_xlsx(transformers, str(output_transformers_path))
-            print(f"\n✅ Обработано трансформаторов тока: {len(transformers)}")
+            logger.info(f"\n✅ Обработано трансформаторов тока: {len(transformers)}")
             
-            print("\n📊 Пример результатов по трансформаторам (первые 10):")
+            logger.info("\n📊 Пример результатов по трансформаторам (первые 10):")
             for i, tt in enumerate(transformers[:10]):
-                print(f"   {i+1}. №{tt['number']}: {tt['location']} → {tt['scheme_designation']} → {tt['tt_type'][:30]} → {tt['ktt']}")
+                logger.info(f"   {i+1}. №{tt['number']}: {tt['location']} → {tt['scheme_designation']} → {tt['tt_type'][:30]} → {tt['ktt']}")
         else:
-            print("\n⚠️ Трансформаторы тока не найдены в файле")
+            logger.info("\n⚠️ Трансформаторы тока не найдены в файле")
 
     except Exception as e:
-        print(f"\n❌ Ошибка: {e}")
+        logger.info(f"\n❌ Ошибка: {e}")
         import traceback
         traceback.print_exc()
 
-    print("\n" + "=" * 50)
+    logger.info("\n" + "=" * 50)
     
     # Только в обычном режиме ждем нажатия Enter
     if not is_gui_mode:

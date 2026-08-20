@@ -5,6 +5,17 @@ import pdfplumber
 from openpyxl import load_workbook, Workbook
 from pathlib import Path
 import builtins
+import logging
+
+# Настраиваем логирование
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 def should_stop():
     """Проверяет, запросил ли пользователь остановку через GUI."""
@@ -81,8 +92,8 @@ def load_nominals_library(library_path=None):
         library_path = os.path.join(script_folder, "Library_nominals.xlsx")
     
     if not os.path.exists(library_path):
-        print(f"⚠️ Библиотека номиналов не найдена: {library_path}")
-        print(f"   Номинальные токи будут определяться по шаблону 'XX A' в PDF")
+        logger.info(f"⚠️ Библиотека номиналов не найдена: {library_path}")
+        logger.info(f"   Номинальные токи будут определяться по шаблону 'XX A' в PDF")
         return {}
     
     try:
@@ -106,14 +117,14 @@ def load_nominals_library(library_path=None):
                     nominal_value = int(float(nominal)) if isinstance(nominal, (int, float)) else int(float(str(nominal).strip()))
                     nominals[device_type_clean] = nominal_value
                 except (ValueError, TypeError):
-                    print(f"   ⚠️ Некорректный номинал для {device_type_clean}: {nominal}")
+                    logger.info(f"   ⚠️ Некорректный номинал для {device_type_clean}: {nominal}")
                     nominals[device_type_clean] = nominal
         
-        print(f"✅ Загружено номиналов из библиотеки: {len(nominals)}")
+        logger.info(f"✅ Загружено номиналов из библиотеки: {len(nominals)}")
         return nominals
     
     except Exception as e:
-        print(f"❌ Ошибка загрузки библиотеки номиналов: {e}")
+        logger.info(f"❌ Ошибка загрузки библиотеки номиналов: {e}")
         return {}
 
 def match_device_type_with_library(device_type, nominals_library):
@@ -175,10 +186,10 @@ def extract_circuit_breakers_from_pdf(pdf_path, nominals_library=None):
     errors_automats = []  # Список для хранения ошибок (автоматов не найденных в библиотеке)
     
     if not pdf_path or not os.path.exists(pdf_path):
-        print("⚠️ PDF с КТС не найден. Автоматы не будут определены.")
+        logger.info("⚠️ PDF с КТС не найден. Автоматы не будут определены.")
         return breakers_data, errors_automats
     
-    print(f"📄 Обработка PDF: {os.path.basename(pdf_path)}")
+    logger.info(f"📄 Обработка PDF: {os.path.basename(pdf_path)}")
     
     try:
         with pdfplumber.open(pdf_path) as pdf:
@@ -198,7 +209,7 @@ def extract_circuit_breakers_from_pdf(pdf_path, nominals_library=None):
                             row_text = ' '.join([str(cell) if cell else '' for cell in row])
                             full_text += row_text + "\n"
     except Exception as e:
-        print(f"❌ Ошибка при открытии PDF: {e}")
+        logger.info(f"❌ Ошибка при открытии PDF: {e}")
         return breakers_data, errors_automats
     
     # Разбиваем на строки
@@ -283,7 +294,7 @@ def extract_circuit_breakers_from_pdf(pdf_path, nominals_library=None):
                         nominal_from_lib = match_device_type_with_library(device_type_clean, nominals_library)
                         if nominal_from_lib is not None:
                             nominal_current = nominal_from_lib
-                            print(f"   Найден автомат: {sf_pos} → {device_type_clean} (номинал из библиотеки: {nominal_current}A)")
+                            logger.info(f"   Найден автомат: {sf_pos} → {device_type_clean} (номинал из библиотеки: {nominal_current}A)")
                         else:
                             # Fallback: ищем номинал по шаблону 'XX A' в PDF
                             for offset in range(-2, 3):
@@ -293,7 +304,7 @@ def extract_circuit_breakers_from_pdf(pdf_path, nominals_library=None):
                                     nominal_match = re.search(r'(\d+(?:\.\d+)?)\s*A', check_line)
                                     if nominal_match:
                                         nominal_current = int(float(nominal_match.group(1)))
-                                        print(f"   Найден автомат: {sf_pos} → {device_type_clean} (номинал из PDF: {nominal_current}A) [тип {device_type_clean} не найден в библиотеке]")
+                                        logger.info(f"   Найден автомат: {sf_pos} → {device_type_clean} (номинал из PDF: {nominal_current}A) [тип {device_type_clean} не найден в библиотеке]")
                                         # Запоминаем ошибку
                                         error_info = {
                                             'position': sf_pos,
@@ -304,7 +315,7 @@ def extract_circuit_breakers_from_pdf(pdf_path, nominals_library=None):
                                         break
                             else:
                                 nominal_current = f"Не указан (тип '{device_type_clean}' не найден в библиотеке)"
-                                print(f"   Найден автомат: {sf_pos} → {device_type_clean} (номинал не определён)")
+                                logger.info(f"   Найден автомат: {sf_pos} → {device_type_clean} (номинал не определён)")
                                 # Запоминаем ошибку
                                 error_info = {
                                     'position': sf_pos,
@@ -321,15 +332,15 @@ def extract_circuit_breakers_from_pdf(pdf_path, nominals_library=None):
                                 nominal_match = re.search(r'(\d+(?:\.\d+)?)\s*A', check_line)
                                 if nominal_match:
                                     nominal_current = int(float(nominal_match.group(1)))
-                                    print(f"   Найден автомат: {sf_pos} → {device_type_clean} (номинал из PDF: {nominal_current}A)")
+                                    logger.info(f"   Найден автомат: {sf_pos} → {device_type_clean} (номинал из PDF: {nominal_current}A)")
                                     break
                         else:
                             nominal_current = "Не указан"
-                            print(f"   Найден автомат: {sf_pos} → {device_type_clean} (номинал не указан в PDF)")
+                            logger.info(f"   Найден автомат: {sf_pos} → {device_type_clean} (номинал не указан в PDF)")
                 else:
                     device_type = "Тип не определён"
                     nominal_current = "Не указан"
-                    print(f"   Найден SF: {sf_pos} (тип не определён)")
+                    logger.info(f"   Найден SF: {sf_pos} (тип не определён)")
                 
                 # Определяем номер схемы (нужно найти заголовок "Перечень элементов схемы X.X" выше по тексту)
                 scheme_num = "Не определена"
@@ -363,7 +374,7 @@ def print_errors_summary(errors_automats, breakers_list=None):
     if not errors_automats:
         return
     
-    print(f"\n⚠️ Строки автоматов, требующие добавления в библиотеку:")
+    logger.info(f"\n⚠️ Строки автоматов, требующие добавления в библиотеку:")
     
     # Собираем уникальные типы для вывода
     unique_error_types = {}
@@ -376,20 +387,20 @@ def print_errors_summary(errors_automats, breakers_list=None):
     for error_type in sorted(unique_error_types.keys()):
         err = unique_error_types[error_type]
         if err.get('nominal_from_pdf'):
-            print(f"   - [тип '{err['type']}' - номинал {err['nominal_from_pdf']}A найден в PDF]")
+            logger.info(f"   - [тип '{err['type']}' - номинал {err['nominal_from_pdf']}A найден в PDF]")
         else:
-            print(f"   - [тип '{err['type']}' не найден в библиотеке]")
+            logger.info(f"   - [тип '{err['type']}' не найден в библиотеке]")
     
     # Показываем статистику и примеры
-    print(f"\n📊 Всего уникальных типов, отсутствующих в библиотеке: {len(unique_error_types)}")
-    print(f"   Общее количество позиций с ошибками: {len(errors_automats)}")
+    logger.info(f"\n📊 Всего уникальных типов, отсутствующих в библиотеке: {len(unique_error_types)}")
+    logger.info(f"   Общее количество позиций с ошибками: {len(errors_automats)}")
     
     # Примеры (первые 5)
     if len(errors_automats) > 0:
-        print(f"\n   Примеры (первые 5 из {len(errors_automats)}):")
+        logger.info(f"\n   Примеры (первые 5 из {len(errors_automats)}):")
         for err in errors_automats[:5]:
             nominal_info = f"({err.get('nominal_from_pdf', '?')}A)" if err.get('nominal_from_pdf') else "(номинал не определён)"
-            print(f"      {err['position']} (схема {err.get('scheme', '?')}) → {err['type'][:40]} {nominal_info}")
+            logger.info(f"      {err['position']} (схема {err.get('scheme', '?')}) → {err['type'][:40]} {nominal_info}")
 
 def extract_basket_name(sheet):
     """Извлекает наименование корзины из строки 'Таблица фидеров:'"""
@@ -443,34 +454,34 @@ def extract_circuit_breakers_from_baskets(excel_file_path, pdf_breakers, errors_
     wb = load_workbook(excel_file_path, data_only=True)
     sheet = wb.active
     
-    print(f"📊 Обработка Excel файла: {os.path.basename(excel_file_path)}")
-    print("=" * 50)
+    logger.info(f"📊 Обработка Excel файла: {os.path.basename(excel_file_path)}")
+    logger.info("=" * 50)
     
     basket_name = extract_basket_name(sheet)
-    print(f"Наименование корзины: {basket_name}")
+    logger.info(f"Наименование корзины: {basket_name}")
     
     header_row = find_headers_row(sheet)
     if header_row is None:
-        print("❌ Не найдена строка с заголовками!")
+        logger.info("❌ Не найдена строка с заголовками!")
         return [], basket_name
     
     col_module = find_column_by_header(sheet, header_row, ["Позиционное обозначение выкатного модуля"])
     col_scheme = find_column_by_header(sheet, header_row, ["№ схемы КТС/Э3"])
     
     if col_module is None:
-        print("❌ Столбец 'Позиционное обозначение выкатного модуля' не найден!")
+        logger.info("❌ Столбец 'Позиционное обозначение выкатного модуля' не найден!")
         return [], basket_name
     
-    print(f"✅ Столбец корзины: {col_module}")
+    logger.info(f"✅ Столбец корзины: {col_module}")
     if col_scheme:
-        print(f"✅ Столбец схемы КТС: {col_scheme}")
-    print("=" * 50)
+        logger.info(f"✅ Столбец схемы КТС: {col_scheme}")
+    logger.info("=" * 50)
     
     # Собираем все строки (корзины) из Excel
     modules_data = []
     for row_idx in range(header_row + 1, sheet.max_row + 1):
         if should_stop():
-            print("⏹️ Остановка по запросу пользователя")
+            logger.info("⏹️ Остановка по запросу пользователя")
             return [], basket_name
         module_value = sheet.cell(row=row_idx, column=col_module).value
         if not module_value or str(module_value).strip() == "":
@@ -492,13 +503,13 @@ def extract_circuit_breakers_from_baskets(excel_file_path, pdf_breakers, errors_
     
     # Если pdf_breakers пуст, выводим предупреждение
     if not pdf_breakers:
-        print("\n⚠️ ВНИМАНИЕ: PDF с КТС не содержит данных об автоматах или не был найден!")
-        print("   Автоматические выключатели не будут сопоставлены с корзинами.")
+        logger.info("\n⚠️ ВНИМАНИЕ: PDF с КТС не содержит данных об автоматах или не был найден!")
+        logger.info("   Автоматические выключатели не будут сопоставлены с корзинами.")
     
     # Обрабатываем каждую корзину
     for module_info in modules_data:
         if should_stop():
-            print("⏹️ Остановка по запросу пользователя")
+            logger.info("⏹️ Остановка по запросу пользователя")
             return all_breakers, basket_name
         module_str = module_info['module']
         scheme_num = module_info['scheme']
@@ -523,12 +534,12 @@ def extract_circuit_breakers_from_baskets(excel_file_path, pdf_breakers, errors_
                 counter += 1
         elif scheme_num:
             # Схема есть в Excel, но в PDF для неё нет автоматов
-            print(f"   ⚠️ Для схемы {scheme_num} (корзина {module_str}) автоматы не найдены в PDF")
+            logger.info(f"   ⚠️ Для схемы {scheme_num} (корзина {module_str}) автоматы не найдены в PDF")
     
     # Вывод статистики
-    print(f"\n📊 ИТОГО:")
-    print(f"   - Корзин обработано: {len(modules_data)}")
-    print(f"   - Автоматов найдено: {len(all_breakers)}")
+    logger.info(f"\n📊 ИТОГО:")
+    logger.info(f"   - Корзин обработано: {len(modules_data)}")
+    logger.info(f"   - Автоматов найдено: {len(all_breakers)}")
     
     # Выводим ошибки
     print_errors_summary(errors_automats, all_breakers)
@@ -597,54 +608,54 @@ def main():
         # Убираем аргумент --from-gui из списка
         args = [arg for arg in sys.argv[1:] if arg != '--from-gui']
         if not args:
-            print("❌ Ошибка: не указан путь к файлу!")
+            logger.info("❌ Ошибка: не указан путь к файлу!")
             return
         excel_file_path = args[0]
     else:
         # Обычный режим (из проводника)
         if len(sys.argv) < 2:
-            print("Использование: перетащите XLSX файл на этот скрипт")
+            logger.info("Использование: перетащите XLSX файл на этот скрипт")
             input("\nНажмите Enter для выхода...")
             return
         excel_file_path = sys.argv[1]
     
     if not os.path.exists(excel_file_path):
-        print(f"❌ Ошибка: Файл '{excel_file_path}' не найден!")
+        logger.info(f"❌ Ошибка: Файл '{excel_file_path}' не найден!")
         if not is_gui_mode:
             input("Нажмите Enter для выхода...")
         return
     
-    print(f"\n📁 Обработка файла: {os.path.basename(excel_file_path)}")
-    print("=" * 50)
+    logger.info(f"\n📁 Обработка файла: {os.path.basename(excel_file_path)}")
+    logger.info("=" * 50)
     
     # Загружаем библиотеку номиналов
-    print("📚 Загрузка библиотеки номинальных токов...")
+    logger.info("📚 Загрузка библиотеки номинальных токов...")
     nominals_library = load_nominals_library()
-    print("=" * 50)
+    logger.info("=" * 50)
     
     # Ищем PDF с КТС в ПАПКЕ С EXCEL ФАЙЛОМ
     excel_folder = os.path.dirname(os.path.abspath(excel_file_path))
-    print(f"📁 Поиск PDF с КТС в папке Excel файла: {excel_folder}")
+    logger.info(f"📁 Поиск PDF с КТС в папке Excel файла: {excel_folder}")
     ktc_pdf = find_ktc_pdf(excel_folder)
     
     if ktc_pdf:
-        print(f"✅ Найден PDF: {os.path.basename(ktc_pdf)}")
+        logger.info(f"✅ Найден PDF: {os.path.basename(ktc_pdf)}")
     else:
-        print(f"⚠️ PDF с 'КТС' или 'КРУС-КТС' в названии не найден в папке с Excel файлом!")
-        print(f"   Папка: {excel_folder}")
-        print(f"   Автоматы не будут определены.")
+        logger.info(f"⚠️ PDF с 'КТС' или 'КРУС-КТС' в названии не найден в папке с Excel файлом!")
+        logger.info(f"   Папка: {excel_folder}")
+        logger.info(f"   Автоматы не будут определены.")
     
     # Извлекаем автоматы из PDF с использованием библиотеки номиналов
     pdf_breakers, errors_automats = extract_circuit_breakers_from_pdf(ktc_pdf, nominals_library)
     
     if pdf_breakers:
-        print(f"\n📊 Найдено схем с автоматами: {len(pdf_breakers)}")
+        logger.info(f"\n📊 Найдено схем с автоматами: {len(pdf_breakers)}")
         total_breakers = sum(len(v) for v in pdf_breakers.values())
-        print(f"📊 Всего позиций автоматов: {total_breakers}")
+        logger.info(f"📊 Всего позиций автоматов: {total_breakers}")
     else:
-        print("\n⚠️ Автоматы в PDF не найдены или PDF отсутствует.")
+        logger.info("\n⚠️ Автоматы в PDF не найдены или PDF отсутствует.")
     
-    print("=" * 50)
+    logger.info("=" * 50)
     
     try:
         breakers, basket_name = extract_circuit_breakers_from_baskets(excel_file_path, pdf_breakers, errors_automats)
@@ -660,22 +671,22 @@ def main():
             output_path = output_dir_path / f"{base_name}_Автоматические_выключатели_в_корзинах.xlsx"
             
             save_breakers_to_xlsx(breakers, str(output_path))
-            print(f"\n✅ Обработано автоматов: {len(breakers)}")
-            print(f"📁 Результат сохранён в: {output_path}")
+            logger.info(f"\n✅ Обработано автоматов: {len(breakers)}")
+            logger.info(f"📁 Результат сохранён в: {output_path}")
             
             # Вывод примера
-            print("\n📋 ПРИМЕР найденных автоматов:")
+            logger.info("\n📋 ПРИМЕР найденных автоматов:")
             for breaker in breakers[:5]:
-                print(f"   {breaker['scheme_designation']} → {breaker['device_type']} ({breaker['nominal_current']}A)")
+                logger.info(f"   {breaker['scheme_designation']} → {breaker['device_type']} ({breaker['nominal_current']}A)")
         else:
-            print("\n⚠️ Автоматы не найдены в файле!")
+            logger.info("\n⚠️ Автоматы не найдены в файле!")
     
     except Exception as e:
-        print(f"\n❌ Ошибка: {e}")
+        logger.info(f"\n❌ Ошибка: {e}")
         import traceback
         traceback.print_exc()
     
-    print("\n" + "=" * 50)
+    logger.info("\n" + "=" * 50)
     
     # Только в обычном режиме ждем нажатия Enter
     if not is_gui_mode:
