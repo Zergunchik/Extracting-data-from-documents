@@ -23,6 +23,36 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def get_font(size_type: str = "normal", weight: str = "normal") -> ctk.CTkFont:
+    """
+    Возвращает объект шрифта на основе настроек из config.py.
+    
+    Параметры:
+        size_type: тип размера ('title', 'header', 'normal', 'small', 'button')
+        weight: начертание ('bold' или 'normal')
+    
+    Возвращает:
+        ctk.CTkFont: объект шрифта для использования в виджетах
+    """
+    size_map = {
+        "title": config.FONT_SIZE_TITLE,
+        "header": config.FONT_SIZE_HEADER,
+        "normal": config.FONT_SIZE_NORMAL,
+        "small": config.FONT_SIZE_SMALL,
+        "button": config.FONT_SIZE_BUTTON,
+    }
+    
+    weight_map = {
+        "bold": config.FONT_WEIGHT_BOLD,
+        "normal": config.FONT_WEIGHT_NORMAL,
+    }
+    
+    size = size_map.get(size_type, config.FONT_SIZE_NORMAL)
+    weight = weight_map.get(weight, config.FONT_WEIGHT_NORMAL)
+    
+    return ctk.CTkFont(family=config.FONT_FAMILY, size=size, weight=weight)
+
+
 class MainWindow(TkinterDnD.Tk):
     def __init__(self):
         super().__init__()
