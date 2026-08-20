@@ -165,9 +165,20 @@ def main():
         print("\nОпции:")
         print("  --no-cache     Не использовать кэширование")
         print("  --no-gui       Пропустить GUI диалог выбора напряжения")
-        sys.exit(1)
+        print("  --help         Показать эту справку")
+        sys.exit(0)
     
     pdf_path = sys.argv[1]
+    
+    # Проверка на --help
+    if pdf_path in ('--help', '-h'):
+        print("Использование: python run_pipeline.py <путь_к_PDF> [выходная_директория]")
+        print("\nОпции:")
+        print("  --no-cache     Не использовать кэширование")
+        print("  --no-gui       Пропустить GUI диалог выбора напряжения")
+        print("  --help         Показать эту справку")
+        sys.exit(0)
+    
     output_dir = None
     use_cache = True
     skip_voltage_dialog = False
@@ -185,6 +196,9 @@ def main():
         elif arg == '--output-dir' and i + 1 < len(sys.argv):
             output_dir = sys.argv[i + 1]
             i += 1
+        elif arg == '--from-gui':
+            # Этот флаг игнорируется, но принимается для совместимости с GUI
+            pass
         i += 1
     
     # Запускаем конвейер

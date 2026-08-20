@@ -136,7 +136,8 @@ def _run_script_subprocess(script_name: str, input_file: Path, output_folder: Pa
 def run_script(script_name: str, input_file: Path, output_folder: Path,
                current_folder: Path, use_frozen: bool = False,
                merge_mode: bool = False, process_holder=None,
-               stop_check: Optional[Callable[[], bool]] = None) -> Tuple[bool, str, str, List[Path]]:
+               stop_check: Optional[Callable[[], bool]] = None,
+               is_pipeline: bool = False) -> Tuple[bool, str, str, List[Path]]:
     """Запускает скрипт, возвращает (success, message, full_output, created_files)."""
     start_time = time.time()
 
@@ -158,7 +159,15 @@ def run_script(script_name: str, input_file: Path, output_folder: Path,
     created = []
     stem = input_file.stem
 
-    if script_name == "extract_relays.py":
+    # Для pipeline ищем файлы реле и автоматов
+    if is_pipeline or script_name == "run_pipeline.py":
+        for f in output_folder.glob(f"{stem}_Реле*.xlsx"):
+            if f.stat().st_mtime >= start_time - 0.5:
+                created.append(f)
+        for f in output_folder.glob(f"{stem}_Автоматические_выключатели*.xlsx"):
+            if f.stat().st_mtime >= start_time - 0.5:
+                created.append(f)
+    elif script_name == "extract_relays.py":
         for f in output_folder.glob("*.xlsx"):
             if "Реле" in f.stem or "Общий_Отчет_Реле" in f.stem:
                 if f.stat().st_mtime >= start_time - 0.5:
@@ -202,6 +211,7 @@ def process_files_for_operation(
     progress_callback: Optional[Callable[[int, str], None]] = None,
     stop_check: Optional[Callable[[], bool]] = None,
     process_holder: Optional[object] = None,
+    is_pipeline: bool = False,
 ) -> Tuple[bool, List[str], str, List[Path], Set[str]]:
     """Обрабатывает несколько файлов для одной операции."""
     temp_output = output_folder / "temp_объединение" if merge_mode else output_folder
@@ -224,13 +234,13 @@ def process_files_for_operation(
             success, msg, output, created = run_script(
                 script_name, file, temp_output, current_folder, use_frozen,
                 merge_mode=False, process_holder=process_holder,
-                stop_check=stop_check
+                stop_check=stop_check, is_pipeline=is_pipeline
             )
             all_messages.append(f"📄 {file.name}: {msg}")
             all_outputs.append(f"--- Файл: {file.name} ---\n{output}\n")
             all_created.extend(created)
 
-            if script_name in ("extract_circuit_breaker.py", "extract_circuit_breaker_from_baskets.py",
+            if not is_pipeline and script_name in ("extract_circuit_breaker.py", "extract_circuit_breaker_from_baskets.py",
                                "extract_secondary_circuit_breaker.py"):
                 all_missing.update(extract_missing_types(output))
         except Exception as e:
@@ -243,7 +253,7 @@ def process_files_for_operation(
     if merge_mode:
         if len(all_created) > 1:
             # Группируем файлы по типу для extract_specification.py
-            if script_name == "extract_specification.py":
+            if script_name == "extract_specification.py" or script_name == "run_pipeline.py":
                 relay_files = [f for f in all_created if "Реле" in f.name]
                 breaker_files = [f for f in all_created if "Автоматические_выключатели" in f.name]
                 

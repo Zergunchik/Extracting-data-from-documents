@@ -137,11 +137,12 @@ class Controller:
             if selected.get("specification", False) and not self.stop_requested:
                 self.gui.add_output("\n📋 Извлечение данных из спецификации...", "info")
                 success, msgs, _, created, missing = process_files_for_operation(
-                    "extract_specification.py", files["pdf"], output_folder, "Извлечение данных из спецификации", merge_mode,
+                    "run_pipeline.py", files["pdf"], output_folder, "Извлечение данных из спецификации", merge_mode,
                     self.current_folder, use_frozen,
                     progress_callback=self._update_progress,
                     stop_check=lambda: self.stop_requested,
-                    process_holder=self
+                    process_holder=self,
+                    is_pipeline=True
                 )
                 for msg in msgs:
                     self.gui.add_output(f"  {msg}")
