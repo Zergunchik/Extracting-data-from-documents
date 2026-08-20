@@ -130,7 +130,7 @@ class MainWindow(TkinterDnD.Tk):
         self.header_frame.pack(fill="x", padx=10, pady=(10, 5))
         self.title_label = ctk.CTkLabel(
             self.header_frame, text="⚡ Извлечение данных для ТО",
-            font=ctk.CTkFont(size=24, weight="bold")
+            font=get_font("title", "bold")
         )
         self.title_label.pack(side="left", padx=10)
 
@@ -138,41 +138,41 @@ class MainWindow(TkinterDnD.Tk):
         self.sidebar_frame.pack(side="left", fill="y", padx=(10, 5), pady=5)
         self.sidebar_frame.pack_propagate(False)
 
-        ctk.CTkLabel(self.sidebar_frame, text="⚙️ Настройки", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(10, 5))
+        ctk.CTkLabel(self.sidebar_frame, text="⚙️ Настройки", font=get_font("header", "bold")).pack(pady=(10, 5))
         ctk.CTkLabel(self.sidebar_frame, text="Режим сохранения:").pack(anchor="w", padx=10, pady=(10, 0))
         ctk.CTkRadioButton(self.sidebar_frame, text="Отдельные файлы", variable=self.save_mode_var, value="separate").pack(anchor="w", padx=20, pady=2)
         ctk.CTkRadioButton(self.sidebar_frame, text="Общий файл (объединенный)", variable=self.save_mode_var, value="merged").pack(anchor="w", padx=20, pady=2)
         ctk.CTkLabel(self.sidebar_frame, text=" ").pack(pady=10)
 
-        ctk.CTkLabel(self.sidebar_frame, text="📁 Папка результатов:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
+        ctk.CTkLabel(self.sidebar_frame, text="📁 Папка результатов:", font=get_font("normal", "bold")).pack(anchor="w", padx=10, pady=(10, 5))
         self.result_path_entry = ctk.CTkEntry(self.sidebar_frame, textvariable=self.result_path_var, state="readonly")
         self.result_path_entry.pack(fill="x", padx=10, pady=(0, 5))
         ctk.CTkButton(self.sidebar_frame, text="📂 Выбрать папку", command=self._выбрать_папку).pack(fill="x", padx=10, pady=(0, 5))
-        self.folder_info_label = ctk.CTkLabel(self.sidebar_frame, text=f"Текущая папка:\n{self.result_folder}", wraplength=260, font=ctk.CTkFont(size=11))
+        self.folder_info_label = ctk.CTkLabel(self.sidebar_frame, text=f"Текущая папка:\n{self.result_folder}", wraplength=260, font=get_font("small"))
         self.folder_info_label.pack(padx=10, pady=5)
 
         self.content_frame = ctk.CTkFrame(self.main_frame)
         self.content_frame.pack(side="right", fill="both", expand=True, padx=(5, 10), pady=5)
-        ctk.CTkLabel(self.content_frame, text="📊 Обработка Excel/PDF файлов", font=ctk.CTkFont(size=18, weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
+        ctk.CTkLabel(self.content_frame, text="📊 Обработка Excel/PDF файлов", font=get_font("header", "bold")).pack(anchor="w", padx=10, pady=(10, 5))
         ctk.CTkLabel(self.content_frame, text="Загрузите файлы и выберите нужные операции").pack(anchor="w", padx=10, pady=(0, 10))
 
         self.upload_frame = ctk.CTkFrame(self.content_frame)
         self.upload_frame.pack(fill="x", padx=10, pady=5)
-        self.upload_btn = ctk.CTkButton(self.upload_frame, text="📎 Загрузить файлы", command=self._загрузить_файлы, height=40, font=ctk.CTkFont(size=14))
+        self.upload_btn = ctk.CTkButton(self.upload_frame, text="📎 Загрузить файлы", command=self._загрузить_файлы, height=40, font=get_font("button"))
         self.upload_btn.pack(side="left", padx=5, pady=5)
-        self.clear_btn = ctk.CTkButton(self.upload_frame, text="🗑️ Очистить", command=self._очистить_файлы, fg_color="gray", height=40)
+        self.clear_btn = ctk.CTkButton(self.upload_frame, text="🗑️ Очистить", command=self._очистить_файлы, fg_color="gray", height=40, font=get_font("button"))
         self.clear_btn.pack(side="left", padx=5, pady=5)
 
-        ctk.CTkLabel(self.content_frame, text="📂 Загруженные файлы (перетащите сюда или используйте кнопку выше):", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
+        ctk.CTkLabel(self.content_frame, text="📂 Загруженные файлы (перетащите сюда или используйте кнопку выше):", font=get_font("normal", "bold")).pack(anchor="w", padx=10, pady=(10, 5))
         self.drag_drop_frame = tk.Frame(self.content_frame, bg="#2b2b2b", bd=2, relief="solid", highlightbackground="#4a90e2", highlightthickness=2, height=120)
         self.drag_drop_frame.pack(fill="x", padx=10, pady=5)
         self.drag_drop_frame.pack_propagate(False)
         self.files_textbox = tk.Text(self.drag_drop_frame, bg="#2b2b2b", fg="#ffffff", insertbackground="#ffffff",
-                                     font=("Segoe UI", 10), wrap="word", state="normal", relief="flat",
+                                     font=(config.FONT_FAMILY, config.FONT_SIZE_NORMAL), wrap="word", state="normal", relief="flat",
                                      highlightthickness=0, bd=0, height=6)
         self.files_textbox.pack(fill="both", expand=True, padx=8, pady=8)
 
-        ctk.CTkLabel(self.content_frame, text="Выберите операции для выполнения:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=(10, 5))
+        ctk.CTkLabel(self.content_frame, text="Выберите операции для выполнения:", font=get_font("normal", "bold")).pack(anchor="w", padx=10, pady=(10, 5))
         self.operations_tabview = ctk.CTkTabview(self.content_frame, width=400, height=180)
         self.operations_tabview.pack(fill="x", padx=10, pady=5)
         tab_xlsx = self.operations_tabview.add("📊 .xlsx")
@@ -184,35 +184,35 @@ class MainWindow(TkinterDnD.Tk):
         ctk.CTkCheckBox(tab_xlsx, text="🔌 Вторичные автоматы в корзинах (требуется КРУС-КТС)", variable=self.var_basket_breakers, command=self._on_basket_breakers_toggle).grid(row=1, column=1, padx=10, pady=5, sticky="w")
         ctk.CTkCheckBox(tab_xlsx, text="📋 Объединить автоматы в шаблон", variable=self.var_merge_template).grid(row=2, column=0, padx=10, pady=5, sticky="w", columnspan=2)
         ctk.CTkLabel(tab_xlsx, text="ℹ️ Объединяет все файлы *Автоматические_выключатели*.xlsx в шаблон\n(требуется Шаблон для автоматов.xlsx в папке скрипта)",
-                     font=ctk.CTkFont(size=10), text_color="#888888").grid(row=3, column=0, padx=10, pady=(0, 5), sticky="w", columnspan=2)
+                     font=get_font("small"), text_color="#888888").grid(row=3, column=0, padx=10, pady=(0, 5), sticky="w", columnspan=2)
 
         ctk.CTkCheckBox(tab_pdf, text="📋 Извлечь данные из спецификации", variable=self.var_specification).grid(row=0, column=0, padx=10, pady=5, sticky="w")
         ctk.CTkLabel(tab_pdf, text="ℹ️ Извлекает реле (KL, K, KLB) и вторичные автоматы (SF/QFD/SFD)\nиз PDF файлов схем",
-                     font=ctk.CTkFont(size=12), text_color="#888888").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+                     font=get_font("normal"), text_color="#888888").grid(row=1, column=0, padx=10, pady=5, sticky="w")
 
         self.buttons_frame = ctk.CTkFrame(self.content_frame)
         self.buttons_frame.pack(fill="x", padx=10, pady=10)
         self.run_btn = ctk.CTkButton(self.buttons_frame, text="▶️ Запустить обработку", command=self._запустить_обработку,
-                                     height=50, font=ctk.CTkFont(size=16, weight="bold"))
+                                     height=50, font=get_font("button", "bold"))
         self.run_btn.pack(side="left", fill="both", expand=True, padx=(0, 5))
         self.stop_btn = ctk.CTkButton(self.buttons_frame, text="⏹️ Стоп", command=self._остановить_обработку,
-                                      height=50, font=ctk.CTkFont(size=16, weight="bold"), fg_color="#c62828", state="disabled")
+                                      height=50, font=get_font("button", "bold"), fg_color="#c62828", state="disabled")
         self.stop_btn.pack(side="left", fill="both", expand=True, padx=(5, 0))
 
         self.progress_frame = ctk.CTkFrame(self.content_frame)
         self.progress_frame.pack(fill="x", padx=10, pady=5)
-        self.progress_label = ctk.CTkLabel(self.progress_frame, text=" ")
+        self.progress_label = ctk.CTkLabel(self.progress_frame, text=" ", font=get_font("normal"))
         self.progress_label.pack()
         self.progress_bar = ttk.Progressbar(self.progress_frame, mode='determinate')
         self.progress_bar.pack(fill="x", padx=5, pady=5)
 
-        ctk.CTkLabel(self.content_frame, text="📝 Результаты обработки:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=10, pady=(10, 0))
+        ctk.CTkLabel(self.content_frame, text="📝 Результаты обработки:", font=get_font("normal", "bold")).pack(anchor="w", padx=10, pady=(10, 0))
         output_container = ctk.CTkFrame(self.content_frame)
         output_container.pack(fill="both", expand=True, padx=10, pady=5)
-        self.output_textbox = ctk.CTkTextbox(output_container, height=200)
+        self.output_textbox = ctk.CTkTextbox(output_container, height=200, font=get_font("normal"))
         self.output_textbox.pack(fill="both", expand=True, side="left")
         self.copy_btn = ctk.CTkButton(output_container, text="📋 Копировать", command=self._копировать_вывод,
-                                      width=100, height=30, font=ctk.CTkFont(size=12))
+                                      width=100, height=30, font=get_font("small"))
         self.copy_btn.pack(side="right", padx=(5, 0), pady=(0, 10), anchor="ne")
 
     # ---------- Потокобезопасные методы обновления GUI ----------
@@ -275,10 +275,10 @@ class MainWindow(TkinterDnD.Tk):
                         self.files_textbox.insert("end", f"  {i}. {f.name}\n", "file")
             else:
                 self.files_textbox.insert("1.0", "📂 Перетащите файлы Excel или PDF сюда\nили нажмите кнопку 'Загрузить файлы' выше", "placeholder")
-            self.files_textbox.tag_config("header", foreground="#4a90e2", font=("Segoe UI", 12, "bold"))
-            self.files_textbox.tag_config("category", foreground="#ffa500", font=("Segoe UI", 11, "bold"))
-            self.files_textbox.tag_config("file", foreground="#ffffff", font=("Segoe UI", 11))
-            self.files_textbox.tag_config("placeholder", foreground="#888888", font=("Segoe UI", 11, "italic"))
+            self.files_textbox.tag_config("header", foreground="#4a90e2", font=(config.FONT_FAMILY, config.FONT_SIZE_HEADER, "bold"))
+            self.files_textbox.tag_config("category", foreground="#ffa500", font=(config.FONT_FAMILY, config.FONT_SIZE_NORMAL, "bold"))
+            self.files_textbox.tag_config("file", foreground="#ffffff", font=(config.FONT_FAMILY, config.FONT_SIZE_NORMAL))
+            self.files_textbox.tag_config("placeholder", foreground="#888888", font=(config.FONT_FAMILY, config.FONT_SIZE_NORMAL, "italic"))
             self.files_textbox.config(state="disabled")
         except Exception:
             pass
