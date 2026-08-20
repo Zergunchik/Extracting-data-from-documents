@@ -57,10 +57,11 @@ def read_process_output(stdout: bytes, stderr: bytes) -> Tuple[str, str]:
     return stdout.decode('utf-8', errors='replace'), stderr.decode('utf-8', errors='replace')
 
 def get_script_path(script_name: str, current_folder: Path) -> Optional[Path]:
-    """Возвращает путь к скрипту в текущей папке или папке scripts"""
+    """Возвращает путь к скрипту в текущей папке, папке scripts или pipeline"""
     candidates = [
         current_folder / script_name,
         current_folder / "scripts" / script_name,
+        current_folder / "pipeline" / script_name,
     ]
     for p in candidates:
         if p.exists():
