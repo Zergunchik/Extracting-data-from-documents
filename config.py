@@ -32,8 +32,8 @@ SCRIPT_NAMES = {
     "transformers": "extract_current_transformer.py",
     "relays_contactors": "extract_contactors_with_relays.py",
     "basket_breakers": "extract_circuit_breaker_from_baskets.py",
-    "secondary_breakers": "extract_specification.py",
-    "relays_pdf": "extract_specification.py",
+    "secondary_breakers": "run_pipeline.py",
+    "relays_pdf": "run_pipeline.py",
     "merge_template": "merge_circuit_breaker_QF.py",
 }
 

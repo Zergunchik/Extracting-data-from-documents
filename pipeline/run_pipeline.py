@@ -170,14 +170,18 @@ def main():
     
     pdf_path = sys.argv[1]
     
-    # Проверка на --help
-    if pdf_path in ('--help', '-h'):
-        print("Использование: python run_pipeline.py <путь_к_PDF> [выходная_директория]")
-        print("\nОпции:")
-        print("  --no-cache     Не использовать кэширование")
-        print("  --no-gui       Пропустить GUI диалог выбора напряжения")
-        print("  --help         Показать эту справку")
-        sys.exit(0)
+    # Проверка на --help или флаги вместо пути к файлу
+    if pdf_path in ('--help', '-h', '--from-gui', '--no-cache', '--no-gui'):
+        if pdf_path in ('--help', '-h'):
+            print("Использование: python run_pipeline.py <путь_к_PDF> [выходная_директория]")
+            print("\nОпции:")
+            print("  --no-cache     Не использовать кэширование")
+            print("  --no-gui       Пропустить GUI диалог выбора напряжения")
+            print("  --help         Показать эту справку")
+        else:
+            print("Ошибка: требуется путь к PDF файлу")
+            print("Использование: python run_pipeline.py <путь_к_PDF> [выходная_директория]")
+        sys.exit(1 if pdf_path != '--help' else 0)
     
     output_dir = None
     use_cache = True

@@ -96,10 +96,18 @@ def _run_script_subprocess(script_name: str, input_file: Path, output_folder: Pa
     if not script_path or not script_path.exists():
         return 1, "", f"Скрипт не найден: {script_name}"
 
-    cmd = [sys.executable, str(script_path), "--from-gui", "--output-dir", str(output_folder)]
-    if merge_mode:
-        cmd.append("--merge")
-    cmd.append(str(input_file))
+    # Для run_pipeline.py аргументы идут в другом порядке: сначала путь к файлу, потом флаги
+    if script_name == "run_pipeline.py":
+        cmd = [sys.executable, str(script_path), str(input_file), "--output-dir", str(output_folder)]
+        if merge_mode:
+            cmd.append("--merge")
+        cmd.append("--from-gui")
+        cmd.append("--no-gui")  # Пропускаем GUI диалог при запуске из GUI
+    else:
+        cmd = [sys.executable, str(script_path), "--from-gui", "--output-dir", str(output_folder)]
+        if merge_mode:
+            cmd.append("--merge")
+        cmd.append(str(input_file))
 
     env = os.environ.copy()
     env['PYTHONIOENCODING'] = 'utf-8'
@@ -172,8 +180,8 @@ def run_script(script_name: str, input_file: Path, output_folder: Path,
             if "Реле" in f.stem or "Общий_Отчет_Реле" in f.stem:
                 if f.stat().st_mtime >= start_time - 0.5:
                     created.append(f)
-    elif script_name == "extract_specification.py":
-        # Для extract_specification.py ищем оба типа файлов: реле и автоматы
+    elif script_name == "extract_specification.py" or script_name == "run_pipeline.py":
+        # Для extract_specification.py и run_pipeline.py ищем оба типа файлов: реле и автоматы
         # Учитываем возможные суффиксы _1, _2 и т.д., если файлы уже существовали
         for f in output_folder.glob(f"{stem}_Реле*.xlsx"):
             if f.stat().st_mtime >= start_time - 0.5:
