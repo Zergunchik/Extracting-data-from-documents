@@ -5,6 +5,16 @@ from pathlib import Path
 APPEARANCE_MODE = "dark"
 COLOR_THEME = "green"
 
+# Настройки шрифтов
+FONT_FAMILY = "MS UI Gothic"  # Семейство шрифта
+FONT_SIZE_TITLE = 24       # Размер заголовков
+FONT_SIZE_HEADER = 18      # Размер заголовков разделов
+FONT_SIZE_NORMAL = 14      # Размер обычного текста
+FONT_SIZE_SMALL = 12       # Размер мелкого текста
+FONT_SIZE_BUTTON = 16      # Размер текста кнопок
+FONT_WEIGHT_BOLD = "bold"  # Жирное начертание
+FONT_WEIGHT_NORMAL = "normal"  # Обычное начертание
+
 # Настройки окна
 WINDOW_TITLE = "Извлечение данных для ТО"
 WINDOW_GEOMETRY = "1200x800"
