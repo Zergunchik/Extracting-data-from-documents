@@ -122,7 +122,8 @@ def extract_tables_from_pdf(pdf_path: str) -> List[Dict[str, Any]]:
 def extract_pdf_to_excel(
     pdf_path: str,
     output_dir: Optional[str] = None,
-    cache_manager=None
+    cache_manager=None,
+    progress_callback=None
 ) -> Optional[str]:
     """
     Главная функция этапа 1: извлечение данных из PDF и сохранение в Excel.
@@ -131,6 +132,7 @@ def extract_pdf_to_excel(
         pdf_path: Путь к PDF файлу
         output_dir: Директория для сохранения выходного файла (опционально)
         cache_manager: Менеджер кэша для проверки и сохранения результатов
+        progress_callback: Функция обратного вызова для обновления прогресса (percent, message)
         
     Returns:
         Путь к созданному Excel файлу или None при ошибке
@@ -146,18 +148,32 @@ def extract_pdf_to_excel(
         cached_excel = cache_manager.get_cached_excel(pdf_file)
         if cached_excel and cached_excel.exists():
             print(f"✅ Найдены закэшированные данные: {cached_excel.name}")
+            if progress_callback:
+                progress_callback(15, "Распознавание PDF: данные загружены из кэша")
             return str(cached_excel)
     
     print(f"\n📁 Обработка файла: {pdf_file.name}")
     print("=" * 50)
     print("Шаг 1: Извлечение текста и таблиц из PDF...")
     
+    if progress_callback:
+        progress_callback(8, "Распознавание PDF: чтение текста...")
+    print("PROGRESS:8:Распознавание PDF: чтение текста...")
+    
     # Извлекаем данные
     text_data = extract_text_from_pdf(str(pdf_path))
+    
+    if progress_callback:
+        progress_callback(12, "Распознавание PDF: извлечение таблиц...")
+    print("PROGRESS:12:Распознавание PDF: извлечение таблиц...")
+    
     tables_data = extract_tables_from_pdf(str(pdf_path))
     
     if not text_data and not tables_data:
         print("❌ Не удалось извлечь данные из PDF файла.")
+        if progress_callback:
+            progress_callback(15, "Ошибка: не удалось извлечь данные из PDF")
+        print("PROGRESS:15:Ошибка: не удалось извлечь данные из PDF")
         return None
     
     # Определяем путь для временного файла
@@ -170,6 +186,10 @@ def extract_pdf_to_excel(
     temp_excel_path = output_path / f"{pdf_file.stem}_extracted_temp.xlsx"
     
     # Сохраняем в Excel
+    if progress_callback:
+        progress_callback(18, "Распознавание PDF: сохранение промежуточных данных...")
+    print("PROGRESS:18:Распознавание PDF: сохранение промежуточных данных...")
+    
     print(f"   Сохранение промежуточных данных: {temp_excel_path.name}")
     with pd.ExcelWriter(temp_excel_path, engine='openpyxl') as writer:
         if text_data:
@@ -185,6 +205,10 @@ def extract_pdf_to_excel(
     # Сохраняем в кэш
     if cache_manager:
         temp_excel_path = cache_manager.save_to_cache(pdf_file, temp_excel_path)
+    
+    if progress_callback:
+        progress_callback(20, "Распознавание PDF: данные сохранены")
+    print("PROGRESS:20:Распознавание PDF: данные сохранены")
     
     print(f"✅ Этап 1 завершен. Временный файл: {temp_excel_path.name}")
     return str(temp_excel_path)

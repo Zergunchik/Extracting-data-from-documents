@@ -94,11 +94,13 @@ def run_full_pipeline(
     
     if progress_callback:
         progress_callback(5, "Распознавание PDF: чтение текста...")
+    print("PROGRESS:5:Распознавание PDF: чтение текста...")
     
     temp_excel = extract_pdf_to_excel(
         pdf_path=str(pdf_path),
         output_dir=output_dir,
-        cache_manager=cache_manager
+        cache_manager=cache_manager,
+        progress_callback=progress_callback
     )
     
     if not temp_excel:
@@ -106,10 +108,12 @@ def run_full_pipeline(
         result['errors'].append(error_msg)
         if progress_callback:
             progress_callback(15, "Ошибка: не удалось распознать PDF")
+        print("PROGRESS:15:Ошибка: не удалось распознать PDF")
         return result
     
     if progress_callback:
         progress_callback(20, "Распознавание PDF: извлечение таблиц...")
+    print("PROGRESS:20:Распознавание PDF: извлечение таблиц...")
     
     result['stages']['stage1']['success'] = True
     result['stages']['stage1']['output'] = temp_excel
@@ -124,16 +128,19 @@ def run_full_pipeline(
     
     if progress_callback:
         progress_callback(30, "Извлечение автоматов: обработка страниц Excel...")
+    print("PROGRESS:30:Извлечение автоматов: обработка страниц Excel...")
     
     breakers, breakers_file = extract_breakers_from_excel(
         input_excel_path=temp_excel,
         output_dir=output_dir,
         apply_nominals=True,
-        pdf_name=pdf_file.stem
+        pdf_name=pdf_file.stem,
+        progress_callback=progress_callback
     )
     
     if progress_callback:
         progress_callback(45, "Извлечение автоматов: применение библиотеки номиналов...")
+    print("PROGRESS:45:Извлечение автоматов: применение библиотеки номиналов...")
     
     result['stages']['stage2']['success'] = True
     result['stages']['stage2']['output'] = breakers_file
@@ -149,16 +156,19 @@ def run_full_pipeline(
     
     if progress_callback:
         progress_callback(55, "Извлечение реле: анализ структуры данных...")
+    print("PROGRESS:55:Извлечение реле: анализ структуры данных...")
     
     relays, relays_file = extract_relays_from_excel(
         input_excel_path=temp_excel,
         output_dir=output_dir,
         pdf_name=pdf_file.stem,
-        skip_voltage_dialog=skip_voltage_dialog
+        skip_voltage_dialog=skip_voltage_dialog,
+        progress_callback=progress_callback
     )
     
     if progress_callback:
         progress_callback(70, "Извлечение реле: определение типов реле...")
+    print("PROGRESS:70:Извлечение реле: определение типов реле...")
     
     result['stages']['stage3']['success'] = True
     result['stages']['stage3']['output'] = relays_file
@@ -167,6 +177,7 @@ def run_full_pipeline(
     
     if progress_callback:
         progress_callback(85, "Сохранение результатов...")
+    print("PROGRESS:85:Сохранение результатов...")
     
     # ==========================================
     # ИТОГОВЫЙ ОТЧЕТ
@@ -182,6 +193,7 @@ def run_full_pipeline(
     
     if progress_callback:
         progress_callback(100, "Обработка завершена успешно")
+    print("PROGRESS:100:Обработка завершена успешно")
     
     return result
 

@@ -666,7 +666,8 @@ def extract_relays_from_excel(
     input_excel_path: str,
     output_dir: Optional[str] = None,
     pdf_name: Optional[str] = None,
-    skip_voltage_dialog: bool = False
+    skip_voltage_dialog: bool = False,
+    progress_callback=None
 ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
     """
     Главная функция этапа 3: извлечение реле из Excel файла.
@@ -676,12 +677,17 @@ def extract_relays_from_excel(
         output_dir: Директория для сохранения результата (опционально)
         pdf_name: Имя исходного PDF файла для формирования имени выходного файла
         skip_voltage_dialog: Пропустить диалог выбора напряжения (использовать только память)
+        progress_callback: Функция обратного вызова для обновления прогресса (percent, message)
         
     Returns:
         (список_реле, путь_к_файлу) или (список_реле, None) если реле не найдены
     """
     print(f"\nШаг 3: Поиск реле в извлеченных данных...")
     print(f"   📂 Открываю файл: {os.path.basename(input_excel_path)}...")
+    
+    if progress_callback:
+        progress_callback(55, "Извлечение реле: загрузка Excel файла...")
+    print("PROGRESS:55:Извлечение реле: загрузка Excel файла...")
     
     try:
         wb = openpyxl.load_workbook(input_excel_path, data_only=True)
@@ -697,9 +703,16 @@ def extract_relays_from_excel(
     else:
         shield_name = Path(input_excel_path).stem.replace('_extracted_temp', '')
 
+    sheet_count = len([s for s in wb.sheetnames if s.lower() not in ['сводка', 'summary', 'текст_из_pdf']])
+    sheet_idx = 0
+
     for sheet_name in wb.sheetnames:
         if sheet_name.lower() in ['сводка', 'summary', 'текст_из_pdf']:
             continue
+        
+        sheet_idx += 1
+        if progress_callback:
+            progress_callback(55 + int((sheet_idx / sheet_count) * 10), f"Извлечение реле: анализ листа {sheet_name}...")
 
         print(f"\n   📄 Обработка листа: {sheet_name}")
         ws = wb[sheet_name]
@@ -713,7 +726,14 @@ def extract_relays_from_excel(
 
     if not all_relays:
         print("\n⚠️ Реле не найдены в извлеченных данных.")
+        if progress_callback:
+            progress_callback(68, "Извлечение реле: реле не найдены")
+    print("PROGRESS:68:Извлечение реле: реле не найдены")
         return all_relays, None
+
+    if progress_callback:
+        progress_callback(68, "Извлечение реле: определение типов реле...")
+    print("PROGRESS:68:Извлечение реле: определение типов реле...")
 
     # Определяем путь для выходного файла
     if output_dir:
@@ -766,6 +786,10 @@ def extract_relays_from_excel(
         print("\n✅ Напряжения для всех найденных типов реле загружены из файла памяти (Relay_voltage.xlsx).")
 
     # Сохраняем итоговый файл со спецификацией
+    if progress_callback:
+        progress_callback(85, "Извлечение реле: сохранение результатов...")
+    print("PROGRESS:85:Извлечение реле: сохранение результатов...")
+    
     save_relays_to_xlsx(all_relays, str(relay_output_file), voltage_map=final_voltage_map)
 
     print(f"\n✅ Реле сохранены: {relay_output_file.name}")

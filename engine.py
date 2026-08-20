@@ -90,7 +90,9 @@ def _run_script_as_module(script_name: str, input_file: Path, output_folder: Pat
 
 def _run_script_subprocess(script_name: str, input_file: Path, output_folder: Path,
                            current_folder: Path, merge_mode: bool = False,
-                           process_holder=None) -> Tuple[int, str, str]:
+                           process_holder=None,
+                           progress_callback=None,
+                           stop_check=None) -> Tuple[int, str, str]:
     """Запускает скрипт через subprocess (для режима разработки)."""
     script_path = get_script_path(script_name, current_folder)
     if not script_path or not script_path.exists():
@@ -117,35 +119,86 @@ def _run_script_subprocess(script_name: str, input_file: Path, output_folder: Pa
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd=str(current_folder),
-        env=env
+        env=env,
+        bufsize=1,  # Поброчное буферизирование
+        universal_newlines=True  # Текстовый режим для чтения строк
     )
 
     if process_holder and hasattr(process_holder, 'set_current_process'):
         process_holder.set_current_process(process)
 
-    try:
-        stdout_bytes, stderr_bytes = process.communicate(timeout=3600)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        stdout_bytes, stderr_bytes = process.communicate()
-        stderr_bytes += b"\n[TIMEOUT] Process exceed time limit (3600 s)\n"
-    except Exception:
-        process.kill()
-        process.wait()
-        raise
-    finally:
-        if process_holder and hasattr(process_holder, 'set_current_process'):
-            process_holder.set_current_process(None)
+    stdout_lines = []
+    stderr_lines = []
+    
+    # Читаем stdout построчно в реальном времени
+    import select
+    import time
+    
+    while True:
+        # Проверяем стоп
+        if stop_check and stop_check():
+            process.kill()
+            process.wait()
+            return -1, "\n".join(stdout_lines), "Остановка по запросу пользователя"
+        
+        # Читаем доступные строки из stdout
+        for line in iter(process.stdout.readline, ''):
+            if line:
+                line = line.rstrip('\n')
+                stdout_lines.append(line)
+                # Пытаемся распознать сообщение прогресса из pipeline
+                # Формат: "PROGRESS:XX:Сообщение" где XX - процент
+                if line.startswith("PROGRESS:"):
+                    parts = line.split(":", 2)
+                    if len(parts) >= 3:
+                        try:
+                            percent = int(parts[1])
+                            message = parts[2]
+                            if progress_callback:
+                                progress_callback(percent, message)
+                        except (ValueError, IndexError):
+                            pass
+        
+        # Читаем stderr
+        for line in iter(process.stderr.readline, ''):
+            if line:
+                stderr_lines.append(line.rstrip('\n'))
+        
+        # Проверяем завершение процесса
+        if process.poll() is not None:
+            # Дочитываем оставшийся вывод
+            remaining_stdout, remaining_stderr = process.communicate()
+            if remaining_stdout:
+                for line in remaining_stdout.splitlines():
+                    stdout_lines.append(line)
+                    if line.startswith("PROGRESS:"):
+                        parts = line.split(":", 2)
+                        if len(parts) >= 3:
+                            try:
+                                percent = int(parts[1])
+                                message = parts[2]
+                                if progress_callback:
+                                    progress_callback(percent, message)
+                            except (ValueError, IndexError):
+                                pass
+            if remaining_stderr:
+                stderr_lines.extend(remaining_stderr.splitlines())
+            break
+        
+        time.sleep(0.05)  # Небольшая пауза чтобы не нагружать CPU
 
-    stdout, stderr = read_process_output(stdout_bytes, stderr_bytes)
-    return process.returncode, stdout, stderr
+    if process_holder and hasattr(process_holder, 'set_current_process'):
+        process_holder.set_current_process(None)
+
+    return process.returncode, "\n".join(stdout_lines), "\n".join(stderr_lines)
 
 
 def run_script(script_name: str, input_file: Path, output_folder: Path,
                current_folder: Path, use_frozen: bool = False,
                merge_mode: bool = False, process_holder=None,
                stop_check: Optional[Callable[[], bool]] = None,
-               is_pipeline: bool = False) -> Tuple[bool, str, str, List[Path]]:
+               is_pipeline: bool = False,
+               progress_callback: Optional[Callable[[int, str], None]] = None) -> Tuple[bool, str, str, List[Path]]:
     """Запускает скрипт, возвращает (success, message, full_output, created_files)."""
     start_time = time.time()
 
@@ -156,7 +209,8 @@ def run_script(script_name: str, input_file: Path, output_folder: Path,
         )
     else:
         retcode, stdout, stderr = _run_script_subprocess(
-            script_name, input_file, output_folder, current_folder, merge_mode, process_holder
+            script_name, input_file, output_folder, current_folder, merge_mode, 
+            process_holder, progress_callback, stop_check
         )
 
     full_output = stdout + "\n" + stderr
@@ -242,7 +296,8 @@ def process_files_for_operation(
             success, msg, output, created = run_script(
                 script_name, file, temp_output, current_folder, use_frozen,
                 merge_mode=False, process_holder=process_holder,
-                stop_check=stop_check, is_pipeline=is_pipeline
+                stop_check=stop_check, is_pipeline=is_pipeline,
+                progress_callback=progress_callback
             )
             all_messages.append(f"📄 {file.name}: {msg}")
             all_outputs.append(f"--- Файл: {file.name} ---\n{output}\n")

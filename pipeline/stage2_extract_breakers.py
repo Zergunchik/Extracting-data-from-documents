@@ -439,7 +439,8 @@ def extract_breakers_from_excel(
     input_excel_path: str,
     output_dir: Optional[str] = None,
     apply_nominals: bool = True,
-    pdf_name: Optional[str] = None
+    pdf_name: Optional[str] = None,
+    progress_callback=None
 ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
     """
     Главная функция этапа 2: извлечение автоматов из Excel файла.
@@ -449,12 +450,16 @@ def extract_breakers_from_excel(
         output_dir: Директория для сохранения результата (опционально)
         apply_nominals: Применять библиотеку номиналов
         pdf_name: Имя исходного PDF файла для формирования имени выходного файла
+        progress_callback: Функция обратного вызова для обновления прогресса (percent, message)
         
     Returns:
         (список_автоматов, путь_к_файлу) или (список_автоматов, None) если автоматы не найдены
     """
     print(f"\nШаг 2: Поиск автоматов в извлеченных данных...")
     print(f"   📂 Открываю файл: {os.path.basename(input_excel_path)}...")
+    
+    if progress_callback:
+        progress_callback(25, "Извлечение автоматов: загрузка Excel файла...")
     
     try:
         wb = openpyxl.load_workbook(input_excel_path, data_only=True)
@@ -463,10 +468,16 @@ def extract_breakers_from_excel(
         return [], None
 
     all_breakers = []
+    sheet_count = len([s for s in wb.sheetnames if s.lower() not in ['сводка', 'summary', 'текст_из_pdf']])
+    sheet_idx = 0
 
     for sheet_name in wb.sheetnames:
         if sheet_name.lower() in ['сводка', 'summary', 'текст_из_pdf']:
             continue
+        
+        sheet_idx += 1
+        if progress_callback:
+            progress_callback(25 + int((sheet_idx / sheet_count) * 15), f"Извлечение автоматов: обработка листа {sheet_name}...")
 
         print(f"\n   📄 Обработка листа: {sheet_name}")
         ws = wb[sheet_name]
@@ -480,13 +491,20 @@ def extract_breakers_from_excel(
 
     if not all_breakers:
         print("\n⚠️ Автоматы не найдены в извлеченных данных.")
+        if progress_callback:
+            progress_callback(42, "Извлечение автоматов: автоматы не найдены")
         return all_breakers, None
 
     # Применяем библиотеку номиналов
     if apply_nominals:
+        if progress_callback:
+            progress_callback(42, "Извлечение автоматов: загрузка библиотеки номиналов...")
         print("\n📚 Загрузка библиотеки номинальных токов...")
         nominals_library = load_nominals_library()
 
+        if progress_callback:
+            progress_callback(45, "Извлечение автоматов: применение библиотеки номиналов...")
+        
         for result in all_breakers:
             if nominals_library:
                 nominal_from_lib = match_device_type_with_library(result['type'], nominals_library)
@@ -517,6 +535,10 @@ def extract_breakers_from_excel(
             counter += 1
 
     save_breakers_to_xlsx(all_breakers, str(breaker_output_file))
+    
+    if progress_callback:
+        progress_callback(50, "Извлечение автоматов: сохранение результатов...")
+    
     print(f"\n✅ Автоматы сохранены: {breaker_output_file.name}")
     print(f"   📊 Всего автоматов: {len(all_breakers)}")
 
